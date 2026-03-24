@@ -349,12 +349,48 @@ def inject_all_css():
         }}, 600);
     }}
 
-    // 모바일 전용 사이드바 플로팅 버튼 (화면 우하단)
-    // FAB 생성은 최초 1회만 — 핸들러는 매 실행마다 덮어써서 최신 window.parent 유지
+    // 사이드바 CSS 직접 열기/닫기 함수 (React 우회)
+    function ypfOpenSidebar() {{
+        const wd = window.parent.document;
+        const sidebar = wd.querySelector('section[data-testid="stSidebar"]');
+        if (!sidebar) return;
+        sidebar.style.setProperty('transform', 'translateX(0px)', 'important');
+        sidebar.style.setProperty('transition', 'transform 0.25s ease', 'important');
+        // 백드롭 생성/표시
+        let bd = wd.getElementById('ypf-bd');
+        if (!bd) {{
+            bd = wd.createElement('div');
+            bd.id = 'ypf-bd';
+            Object.assign(bd.style, {{
+                position:'fixed', inset:'0', zIndex:'998',
+                background:'rgba(0,0,0,0.35)',
+            }});
+            bd.ontouchend = bd.onclick = function(e) {{
+                e.stopPropagation();
+                const s = wd.querySelector('section[data-testid="stSidebar"]');
+                if (s) {{ s.style.removeProperty('transform'); s.style.removeProperty('transition'); }}
+                bd.style.display = 'none';
+                updateFab();
+            }};
+            wd.body.appendChild(bd);
+        }}
+        bd.style.display = 'block';
+        const fab = wd.getElementById('ypf-fab');
+        if (fab) fab.style.display = 'none';
+    }}
+
+    // Streamlit 재실행 후에도 CSS 열림 상태 유지
     (function() {{
-        let fab = window.parent.document.getElementById('ypf-fab');
+        const bd = window.parent.document.getElementById('ypf-bd');
+        if (bd && bd.style.display !== 'none') ypfOpenSidebar();
+    }})();
+
+    // 모바일 전용 사이드바 플로팅 버튼 (화면 우하단)
+    (function() {{
+        const wd = window.parent.document;
+        let fab = wd.getElementById('ypf-fab');
         if (!fab) {{
-            fab = window.parent.document.createElement('button');
+            fab = wd.createElement('button');
             fab.id = 'ypf-fab';
             fab.innerHTML = '&#9776; 정류장';
             Object.assign(fab.style, {{
@@ -366,25 +402,22 @@ def inject_all_css():
                 display: 'none', alignItems: 'center', gap: '6px',
                 touchAction: 'manipulation', pointerEvents: 'all',
             }});
-            window.parent.document.body.appendChild(fab);
+            wd.body.appendChild(fab);
         }}
-        // 핸들러는 항상 최신 iframe window로 재등록 (onclick = 단일 핸들러)
-        fab.onclick = function() {{
-            const toggle = window.parent.document.querySelector(
-                '[data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"]'
-            );
-            if (toggle) toggle.click();
-        }};
-        fab.ontouchend = function(e) {{ e.preventDefault(); fab.onclick(); }};
+        fab.onclick = ypfOpenSidebar;
+        fab.ontouchend = function(e) {{ e.preventDefault(); ypfOpenSidebar(); }};
     }})();
 
     // FAB 표시/숨김 (모바일만, 사이드바 닫혀있을 때만)
     function updateFab() {{
-        const fab = window.parent.document.getElementById('ypf-fab');
+        const wd = window.parent.document;
+        const fab = wd.getElementById('ypf-fab');
         if (!fab) return;
         const isMobile = window.parent.innerWidth <= 900 || window.parent.innerHeight > window.parent.innerWidth;
-        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-        const sidebarOpen = sidebar && sidebar.getBoundingClientRect().left >= -10;
+        const sidebar = wd.querySelector('[data-testid="stSidebar"]');
+        const bd = wd.getElementById('ypf-bd');
+        const sidebarOpen = (sidebar && sidebar.getBoundingClientRect().left >= -10)
+                          || (bd && bd.style.display !== 'none');
         fab.style.display = (isMobile && !sidebarOpen) ? 'flex' : 'none';
     }}
 
