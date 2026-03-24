@@ -99,7 +99,7 @@ def inject_all_css():
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="/app/static/manifest.json">
     <style>
-    .block-container { padding-top: 4rem !important; }
+    .block-container { padding-top: 1rem !important; }
     header[data-testid="stHeader"] { display: none !important; }
     #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
@@ -150,7 +150,7 @@ def inject_all_css():
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem) !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
@@ -638,7 +638,6 @@ def main():
 
         code = STATIONS[sel]["code"]
         st.markdown(f"### {sel}")
-        st.caption(code)
 
         # STEP 1: 노선 선택 (3열 그리드)
         with st.spinner("노선 조회 중..."):
