@@ -268,16 +268,22 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 행(stHorizontalBlock) 간격 제거 — 마진 + 부모 gap 모두 처리
+            // 노선 버튼 행 간격 제거
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
             if (hBlock) {{
-                hBlock.style.setProperty('margin-top', '0', 'important');
-                hBlock.style.setProperty('margin-bottom', '0', 'important');
-                hBlock.style.setProperty('padding-top', '0', 'important');
-                hBlock.style.setProperty('padding-bottom', '0', 'important');
-                if (hBlock.parentElement) {{
-                    hBlock.parentElement.style.setProperty('gap', '4px', 'important');
-                    hBlock.parentElement.style.setProperty('row-gap', '4px', 'important');
+                // wrapper div(부모) 마진/패딩 제거
+                const wrapper = hBlock.parentElement;
+                if (wrapper) {{
+                    wrapper.style.setProperty('margin-top', '0', 'important');
+                    wrapper.style.setProperty('margin-bottom', '0', 'important');
+                    wrapper.style.setProperty('padding-top', '0', 'important');
+                    wrapper.style.setProperty('padding-bottom', '0', 'important');
+                }}
+                // stVerticalBlock(조부모) gap 축소 — 실제 행간 간격 발생원
+                const vBlock = wrapper && wrapper.parentElement;
+                if (vBlock && vBlock.getAttribute('data-testid') === 'stVerticalBlock') {{
+                    vBlock.style.setProperty('gap', '4px', 'important');
+                    vBlock.style.setProperty('row-gap', '4px', 'important');
                 }}
             }}
 
