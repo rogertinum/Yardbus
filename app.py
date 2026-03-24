@@ -357,19 +357,21 @@ def inject_all_css():
         fab.innerHTML = '&#9776; 정류장';
         Object.assign(fab.style, {{
             position: 'fixed', bottom: '80px', right: '16px',
-            zIndex: '1001', background: '#2a5298', color: 'white',
+            zIndex: '99999', background: '#2a5298', color: 'white',
             border: 'none', borderRadius: '24px', padding: '12px 20px',
             fontSize: '15px', fontWeight: '700', cursor: 'pointer',
             boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
             display: 'none', alignItems: 'center', gap: '6px',
-            touchAction: 'manipulation',
+            touchAction: 'manipulation', pointerEvents: 'all',
         }});
-        fab.addEventListener('click', () => {{
+        function openSidebar() {{
             const toggle = window.parent.document.querySelector(
                 '[data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"]'
             );
-            if (toggle) toggle.click();
-        }});
+            if (toggle) toggle.dispatchEvent(new MouseEvent('click', {{bubbles: true, cancelable: true}}));
+        }}
+        fab.addEventListener('click', openSidebar);
+        fab.addEventListener('touchend', (e) => {{ e.preventDefault(); openSidebar(); }});
         window.parent.document.body.appendChild(fab);
     }})();
 
