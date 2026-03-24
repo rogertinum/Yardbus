@@ -100,6 +100,9 @@ def inject_all_css():
     <link rel="manifest" href="/app/static/manifest.json">
     <style>
     .block-container { padding-top: 3.5rem !important; }
+    /* 타이틀과 지도 사이 여백 최소화 */
+    .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; }
+    .block-container [data-testid="stMarkdown"]:first-child { margin-bottom: 0 !important; }
     #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
     /* 사이드바 오버레이 — 메인 영역 폭 변화 없음 */
@@ -156,11 +159,19 @@ def inject_all_css():
         /* 컬럼 세로 배치 (지도 위, 정보패널 아래) */
         [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
+            align-items: stretch !important;
         }
         [data-testid="stColumn"] {
             flex: none !important;
             width: 100% !important;
             min-width: 100% !important;
+        }
+        /* 지도 컬럼: 스크롤해도 상단 고정 */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+            position: sticky !important;
+            top: 3.5rem !important;
+            z-index: 10 !important;
+            background: white !important;
         }
         /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
