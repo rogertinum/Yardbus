@@ -5,7 +5,8 @@ from PIL import Image, ImageDraw, ImageFont
 import math, requests, os, json, datetime
 from functools import lru_cache
 
-BUILD_TIME = datetime.datetime.fromtimestamp(os.path.getmtime(__file__)).strftime("%m/%d %H:%M")
+_KST = datetime.timezone(datetime.timedelta(hours=9))
+BUILD_TIME = datetime.datetime.fromtimestamp(os.path.getmtime(__file__), tz=_KST).strftime("%m/%d %H:%M")
 
 st.set_page_config(page_title="야드 버스 시간표", page_icon="🚌", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -355,7 +356,7 @@ def inject_all_css():
         fab.id = 'ypf-fab';
         fab.innerHTML = '&#9776; 정류장';
         Object.assign(fab.style, {{
-            position: 'fixed', bottom: '20px', right: '16px',
+            position: 'fixed', bottom: '80px', right: '16px',
             zIndex: '1001', background: '#2a5298', color: 'white',
             border: 'none', borderRadius: '24px', padding: '12px 20px',
             fontSize: '15px', fontWeight: '700', cursor: 'pointer',
@@ -364,7 +365,9 @@ def inject_all_css():
             touchAction: 'manipulation',
         }});
         fab.addEventListener('click', () => {{
-            const toggle = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+            const toggle = window.parent.document.querySelector(
+                '[data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"]'
+            );
             if (toggle) toggle.click();
         }});
         window.parent.document.body.appendChild(fab);
