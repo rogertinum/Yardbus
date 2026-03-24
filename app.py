@@ -253,9 +253,18 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 행(stHorizontalBlock) 간격 제거
+            // 노선 버튼 행(stHorizontalBlock) 간격 제거 — 마진 + 부모 gap 모두 처리
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
-            if (hBlock) hBlock.style.setProperty('margin-bottom', '-0.6rem', 'important');
+            if (hBlock) {{
+                hBlock.style.setProperty('margin-top', '0', 'important');
+                hBlock.style.setProperty('margin-bottom', '0', 'important');
+                hBlock.style.setProperty('padding-top', '0', 'important');
+                hBlock.style.setProperty('padding-bottom', '0', 'important');
+                if (hBlock.parentElement) {{
+                    hBlock.parentElement.style.setProperty('gap', '4px', 'important');
+                    hBlock.parentElement.style.setProperty('row-gap', '4px', 'important');
+                }}
+            }}
 
             // 메인패널: 선택이 있으면 나머지 흐리게
             if (!isSbBtn) {{
