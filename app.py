@@ -315,25 +315,9 @@ def inject_all_css():
     }}
 
     // 지도 터치 이벤트 수정 — streamlit-image-coordinates iframe 내 img에 touchend→click 주입
-    // 지도 터치: synthetic click 제거, touch-action만 설정해 네이티브 탭→클릭 사용
-    function fixMapTouch() {{
-        window.parent.document.querySelectorAll('iframe').forEach(iframe => {{
-            try {{
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                if (!doc) return;
-                const img = doc.querySelector('img');
-                if (!img) return;
-                img.style.setProperty('touch-action', 'manipulation', 'important');
-                img.style.setProperty('-webkit-user-select', 'none', 'important');
-                img.style.setProperty('user-select', 'none', 'important');
-            }} catch(e) {{}}
-        }});
-    }}
-
     applyStyles();
-    fixMapTouch();
-    const observer = new MutationObserver(() => {{ applyStyles(); fixMapTouch(); }});
-    observer.observe(window.parent.document.body, {{childList: true, subtree: true}});
+    new MutationObserver(applyStyles)
+        .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
 
