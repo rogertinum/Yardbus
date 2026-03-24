@@ -248,6 +248,15 @@ def inject_all_css():
             btn.style.setProperty('color', c.text, 'important');
             btn.style.fontWeight = '700';
 
+            // stButton·stColumn 래퍼 투명화 (다크모드 흰 꼭짓점 방지)
+            const stBtn = btn.closest('[data-testid="stButton"]');
+            if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
+            const stCol = btn.closest('[data-testid="stColumn"]');
+            if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
+            // 노선 버튼 행(stHorizontalBlock) 간격 제거
+            const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
+            if (hBlock) hBlock.style.setProperty('margin-bottom', '-0.6rem', 'important');
+
             // 메인패널: 선택이 있으면 나머지 흐리게
             if (!isSbBtn) {{
                 btn.style.opacity = (!mainActive || isSelected) ? '1' : '0.35';
