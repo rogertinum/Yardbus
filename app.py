@@ -150,7 +150,7 @@ def inject_all_css():
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 5rem) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
@@ -165,12 +165,15 @@ def inject_all_css():
         }
         /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
             width: 52px !important;
             height: 110px !important;
             top: 50dvh !important;
             transform: translateY(-50%) !important;
             border-radius: 0 16px 16px 0 !important;
-            flex-direction: column !important;
             gap: 4px !important;
             font-size: 11px !important;
             opacity: 1 !important;
