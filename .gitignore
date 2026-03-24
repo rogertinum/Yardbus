@@ -1,0 +1,25 @@
+# 백업 파일
+app_backup_*.py
+app_before_*.py
+
+# Claude 설정
+.claude/
+
+# 개발 참고용 (배포 불필요)
+reference/mastForwardPage.webx
+reference/사내셔틀_방향기준.html
+reference/사내셔틀_정류장기준.html
+reference/shuttle_edited.jpg
+개발방향.md
+프로젝트 기획 템플릿.md
+사내셔틀.pdf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# OS
+.DS_Store
+Thumbs.db
