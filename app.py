@@ -149,6 +149,11 @@ def inject_all_css():
     }
     /* 터치 반응성 — 300ms 딜레이 제거 */
     button { touch-action: manipulation !important; }
+    /* 버튼 래퍼 배경 투명 — 다크모드 흰 꼭짓점 방지 */
+    div[data-testid="stButton"] {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
@@ -647,7 +652,7 @@ def main():
     with col_info:
         sel = st.session_state["selected"]
         if not sel:
-            pass
+            st.info("지도 또는 사이드바에서 정류장을 선택하세요.")
             return
 
         code = STATIONS[sel]["code"]
