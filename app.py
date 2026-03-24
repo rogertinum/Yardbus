@@ -90,6 +90,11 @@ def get_direction_parts(station_name: str, route_id: str, direction: str):
 # ── CSS / JS 주입 ─────────────────────────────────────────────────────────────
 def inject_all_css():
     st.markdown("""
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="야드버스">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="/app/static/manifest.json">
     <style>
     .block-container { padding-top: 4rem !important; }
     header[data-testid="stHeader"] { height: 0 !important; min-height: 0 !important; }
@@ -141,7 +146,11 @@ def inject_all_css():
     button { touch-action: manipulation !important; }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
-        .block-container { padding-top: 2.5rem !important; padding-left: 8px !important; padding-right: 8px !important; }
+        .block-container {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 5rem) !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
         /* 컬럼 세로 배치 (지도 위, 정보패널 아래) */
         [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
@@ -314,7 +323,27 @@ def inject_all_css():
         }});
     }}
 
-    // 지도 터치 이벤트 수정 — streamlit-image-coordinates iframe 내 img에 touchend→click 주입
+    // viewport-fit=cover: safe area inset 사용 가능하게
+    (function() {{
+        const m = window.parent.document.querySelector('meta[name="viewport"]');
+        if (m && !m.content.includes('viewport-fit')) {{
+            m.content += ', viewport-fit=cover';
+        }}
+    }})();
+
+    // 세션 첫 진입 시 사이드바 자동 닫기
+    if (!window.parent.sessionStorage.getItem('ypf_init')) {{
+        window.parent.sessionStorage.setItem('ypf_init', '1');
+        setTimeout(() => {{
+            const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+            const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+            if (btn && sidebar) {{
+                const rect = sidebar.getBoundingClientRect();
+                if (rect.left > -50) btn.click();  // 사이드바가 열려있으면 닫기
+            }}
+        }}, 600);
+    }}
+
     applyStyles();
     new MutationObserver(applyStyles)
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
