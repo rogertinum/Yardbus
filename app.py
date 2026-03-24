@@ -99,7 +99,7 @@ def inject_all_css():
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="/app/static/manifest.json">
     <style>
-    .block-container { padding-top: 1rem !important; }
+    .block-container { padding-top: 3.5rem !important; }
     #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
     /* 사이드바 오버레이 — 메인 영역 폭 변화 없음 */
@@ -149,7 +149,7 @@ def inject_all_css():
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
