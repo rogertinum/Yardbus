@@ -344,8 +344,41 @@ def inject_all_css():
         }}, 600);
     }}
 
+    // 모바일 전용 사이드바 플로팅 버튼 (화면 우하단)
+    (function() {{
+        if (window.parent.document.getElementById('ypf-fab')) return;
+        const fab = window.parent.document.createElement('button');
+        fab.id = 'ypf-fab';
+        fab.innerHTML = '&#9776; 정류장';
+        Object.assign(fab.style, {{
+            position: 'fixed', bottom: '20px', right: '16px',
+            zIndex: '1001', background: '#2a5298', color: 'white',
+            border: 'none', borderRadius: '24px', padding: '12px 20px',
+            fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            display: 'none', alignItems: 'center', gap: '6px',
+            touchAction: 'manipulation',
+        }});
+        fab.addEventListener('click', () => {{
+            const toggle = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+            if (toggle) toggle.click();
+        }});
+        window.parent.document.body.appendChild(fab);
+    }})();
+
+    // FAB 표시/숨김 (모바일만, 사이드바 닫혀있을 때만)
+    function updateFab() {{
+        const fab = window.parent.document.getElementById('ypf-fab');
+        if (!fab) return;
+        const isMobile = window.parent.innerWidth <= 900;
+        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+        const sidebarOpen = sidebar && sidebar.getBoundingClientRect().left >= -10;
+        fab.style.display = (isMobile && !sidebarOpen) ? 'flex' : 'none';
+    }}
+
     applyStyles();
-    new MutationObserver(applyStyles)
+    updateFab();
+    new MutationObserver(() => {{ applyStyles(); updateFab(); }})
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
@@ -586,7 +619,11 @@ def main():
             click_key = (coords["x"], coords["y"])
             if click_key != st.session_state["_last_click"]:
                 st.session_state["_last_click"] = click_key
-                cx, cy = int(coords["x"]), int(coords["y"])
+                # 컴포넌트는 표시 크기 기준 좌표를 반환 → 원본 이미지 픽셀로 스케일 변환
+                disp_w = coords.get("width") or 1280
+                disp_h = coords.get("height") or 720
+                cx = int(coords["x"] * 1280 / disp_w)
+                cy = int(coords["y"] * 720 / disp_h)
                 hit = nearest_station(cx, cy)
                 if hit and hit != st.session_state["selected"]:
                     st.session_state["selected"]    = hit
