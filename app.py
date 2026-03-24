@@ -166,7 +166,7 @@ def inject_all_css():
             gap: 6px !important;
             row-gap: 6px !important;
         }
-        /* 컬럼 세로 배치 (지도 위, 정보패널 아래) */
+        /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
             align-items: stretch !important;
@@ -175,6 +175,16 @@ def inject_all_css():
             flex: none !important;
             width: 100% !important;
             min-width: 100% !important;
+        }
+        /* 안쪽 stHorizontalBlock(노선 버튼 행)은 가로 배치 유지 */
+        [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            align-items: stretch !important;
+        }
+        [data-testid="stColumn"] [data-testid="stColumn"] {
+            flex: 1 !important;
+            width: auto !important;
+            min-width: 0 !important;
         }
         /* 지도 컬럼: 스크롤해도 상단 고정 */
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
