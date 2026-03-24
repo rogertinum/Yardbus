@@ -350,29 +350,32 @@ def inject_all_css():
     }}
 
     // 모바일 전용 사이드바 플로팅 버튼 (화면 우하단)
+    // FAB 생성은 최초 1회만 — 핸들러는 매 실행마다 덮어써서 최신 window.parent 유지
     (function() {{
-        if (window.parent.document.getElementById('ypf-fab')) return;
-        const fab = window.parent.document.createElement('button');
-        fab.id = 'ypf-fab';
-        fab.innerHTML = '&#9776; 정류장';
-        Object.assign(fab.style, {{
-            position: 'fixed', bottom: '80px', right: '16px',
-            zIndex: '99999', background: '#2a5298', color: 'white',
-            border: 'none', borderRadius: '24px', padding: '12px 20px',
-            fontSize: '15px', fontWeight: '700', cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
-            display: 'none', alignItems: 'center', gap: '6px',
-            touchAction: 'manipulation', pointerEvents: 'all',
-        }});
-        function openSidebar() {{
+        let fab = window.parent.document.getElementById('ypf-fab');
+        if (!fab) {{
+            fab = window.parent.document.createElement('button');
+            fab.id = 'ypf-fab';
+            fab.innerHTML = '&#9776; 정류장';
+            Object.assign(fab.style, {{
+                position: 'fixed', bottom: '80px', right: '16px',
+                zIndex: '99999', background: '#2a5298', color: 'white',
+                border: 'none', borderRadius: '24px', padding: '12px 20px',
+                fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+                display: 'none', alignItems: 'center', gap: '6px',
+                touchAction: 'manipulation', pointerEvents: 'all',
+            }});
+            window.parent.document.body.appendChild(fab);
+        }}
+        // 핸들러는 항상 최신 iframe window로 재등록 (onclick = 단일 핸들러)
+        fab.onclick = function() {{
             const toggle = window.parent.document.querySelector(
                 '[data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"]'
             );
-            if (toggle) toggle.dispatchEvent(new MouseEvent('click', {{bubbles: true, cancelable: true}}));
-        }}
-        fab.addEventListener('click', openSidebar);
-        fab.addEventListener('touchend', (e) => {{ e.preventDefault(); openSidebar(); }});
-        window.parent.document.body.appendChild(fab);
+            if (toggle) toggle.click();
+        }};
+        fab.ontouchend = function(e) {{ e.preventDefault(); fab.onclick(); }};
     }})();
 
     // FAB 표시/숨김 (모바일만, 사이드바 닫혀있을 때만)
