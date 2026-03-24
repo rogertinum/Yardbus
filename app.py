@@ -101,7 +101,7 @@ def inject_all_css():
     <style>
     .block-container { padding-top: 3.5rem !important; }
     /* 타이틀과 지도 사이 여백 최소화 */
-    .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; }
+    .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
     .block-container [data-testid="stMarkdown"]:first-child { margin-bottom: 0 !important; }
     #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
@@ -160,6 +160,11 @@ def inject_all_css():
             padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
+        }
+        /* 모바일 전체 요소 간격 축소 */
+        [data-testid="stVerticalBlock"] {
+            gap: 6px !important;
+            row-gap: 6px !important;
         }
         /* 컬럼 세로 배치 (지도 위, 정보패널 아래) */
         [data-testid="stHorizontalBlock"] {
@@ -629,7 +634,7 @@ def render_sidebar():
 
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 def main():
-    st.markdown(f"## 🚌 야드 버스 시간표 <span style='font-size:0.45em;color:#999;font-weight:400'>{BUILD_TIME}</span>", unsafe_allow_html=True)
+    st.markdown(f"## 🚌 야드 버스 시간표 <span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>", unsafe_allow_html=True)
 
     # 세션 초기화
     for key, default in [("selected", None), ("active_line", None),
