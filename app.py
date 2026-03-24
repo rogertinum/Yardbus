@@ -151,10 +151,12 @@ def inject_all_css():
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 사이드바 토글 버튼 — 모바일에서 더 크게 */
+        /* 사이드바 토글 버튼 — 모바일에서 더 크게 + 주소바 고려한 실제 중앙 */
         button[data-testid="collapsedControl"] {
             width: 36px !important;
             height: 72px !important;
+            top: 50dvh !important;
+            transform: translateY(-50%) !important;
         }
         /* 사이드바 노선 버튼 — 모바일 터치 크기 */
         section[data-testid='stSidebar'] .stButton button {
@@ -312,9 +314,33 @@ def inject_all_css():
         }});
     }}
 
+    // 지도 터치 이벤트 수정 — streamlit-image-coordinates iframe 내 img에 touchend→click 주입
+    function fixMapTouch() {{
+        const iframes = window.parent.document.querySelectorAll('iframe');
+        iframes.forEach(iframe => {{
+            try {{
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                if (!doc) return;
+                const img = doc.querySelector('img');
+                if (!img || img._touchFixed) return;
+                img._touchFixed = true;
+                img.style.setProperty('touch-action', 'manipulation', 'important');
+                img.addEventListener('touchend', e => {{
+                    e.preventDefault();
+                    const touch = e.changedTouches[0];
+                    img.dispatchEvent(new MouseEvent('click', {{
+                        bubbles: true, cancelable: true,
+                        clientX: touch.clientX, clientY: touch.clientY
+                    }}));
+                }}, {{ passive: false }});
+            }} catch(e) {{}}
+        }});
+    }}
+
     applyStyles();
-    new MutationObserver(applyStyles)
-        .observe(window.parent.document.body, {{childList: true, subtree: true}});
+    fixMapTouch();
+    const observer = new MutationObserver(() => {{ applyStyles(); fixMapTouch(); }});
+    observer.observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
 
@@ -368,10 +394,12 @@ def render_next_buses(times: list, line_color: str) -> str:
         return "<div style='color:#aaa;padding:8px;text-align:center'>시간표 없음</div>"
     if not upcoming:
         return "<div style='color:#aaa;padding:8px;text-align:center'>🚫 오늘 운행 종료</div>"
+    is_last = len(upcoming) == 1
     html = (
         f"<div style='background:{line_color}18;border-left:4px solid {line_color};"
         f"padding:12px 16px;border-radius:6px;margin-bottom:4px;text-align:center'>"
-        f"🚌 다음 버스<br>"
+        f"🚌 다음 버스"
+        f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">막차</span>' if is_last else ''}<br>"
         f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>"
         f"{fmt(upcoming[0]['TIME'])}</span></div>"
     )
@@ -381,6 +409,13 @@ def render_next_buses(times: list, line_color: str) -> str:
                 f"<div style='padding:2px 16px;color:#555;font-size:0.92em;text-align:center'>"
                 f"{label} &nbsp;"
                 f"<span style='font-weight:700;color:#333'>{fmt(upcoming[idx]['TIME'])}</span></div>"
+            )
+        elif idx == 1:
+            # 그 다음 버스가 없으면 막차 표시
+            html += (
+                f"<div style='padding:2px 16px;font-size:0.92em;text-align:center'>"
+                f"그 다음 &nbsp;"
+                f"<span style='font-weight:700;color:#e53e3e'>막차</span></div>"
             )
     return html
 
