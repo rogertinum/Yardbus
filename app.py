@@ -2,8 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 from streamlit_image_coordinates import streamlit_image_coordinates
 from PIL import Image, ImageDraw, ImageFont
-import math, requests, os, json
+import math, requests, os, json, datetime
 from functools import lru_cache
+
+BUILD_TIME = datetime.datetime.fromtimestamp(os.path.getmtime(__file__)).strftime("%m/%d %H:%M")
 
 st.set_page_config(page_title="야드 버스 시간표", page_icon="🚌", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -331,16 +333,18 @@ def inject_all_css():
         }}
     }})();
 
-    // 세션 첫 진입 시 사이드바 자동 닫기
+    // 세션 첫 진입 시: PC(가로>세로)는 닫기, 모바일(세로>가로)은 열기
     if (!window.parent.sessionStorage.getItem('ypf_init')) {{
         window.parent.sessionStorage.setItem('ypf_init', '1');
         setTimeout(() => {{
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (btn && sidebar) {{
-                const rect = sidebar.getBoundingClientRect();
-                if (rect.left > -50) btn.click();  // 사이드바가 열려있으면 닫기
-            }}
+            if (!btn || !sidebar) return;
+            const isPortrait = window.parent.innerHeight > window.parent.innerWidth;
+            const rect = sidebar.getBoundingClientRect();
+            const isOpen = rect.left > -50;
+            if (isPortrait && !isOpen) {{ btn.click(); }}   // 모바일: 열기
+            else if (!isPortrait && isOpen) {{ btn.click(); }} // PC: 닫기
         }}, 600);
     }}
 
@@ -370,7 +374,7 @@ def inject_all_css():
     function updateFab() {{
         const fab = window.parent.document.getElementById('ypf-fab');
         if (!fab) return;
-        const isMobile = window.parent.innerWidth <= 900;
+        const isMobile = window.parent.innerWidth <= 900 || window.parent.innerHeight > window.parent.innerWidth;
         const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
         const sidebarOpen = sidebar && sidebar.getBoundingClientRect().left >= -10;
         fab.style.display = (isMobile && !sidebarOpen) ? 'flex' : 'none';
@@ -594,7 +598,7 @@ def render_sidebar():
 
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 def main():
-    st.markdown("## 🚌 야드 버스 시간표")
+    st.markdown(f"## 🚌 야드 버스 시간표 <span style='font-size:0.45em;color:#999;font-weight:400'>{BUILD_TIME}</span>", unsafe_allow_html=True)
 
     # 세션 초기화
     for key, default in [("selected", None), ("active_line", None),
@@ -619,11 +623,11 @@ def main():
             click_key = (coords["x"], coords["y"])
             if click_key != st.session_state["_last_click"]:
                 st.session_state["_last_click"] = click_key
-                # 컴포넌트는 표시 크기 기준 좌표를 반환 → 원본 이미지 픽셀로 스케일 변환
-                disp_w = coords.get("width") or 1280
-                disp_h = coords.get("height") or 720
-                cx = int(coords["x"] * 1280 / disp_w)
-                cy = int(coords["y"] * 720 / disp_h)
+                # 표시 크기 기준 비율(0.0~1.0) → 원본 픽셀(1280×720)로 변환
+                disp_w = coords.get("width") or 1
+                disp_h = coords.get("height") or 1
+                cx = int((coords["x"] / disp_w) * 1280)
+                cy = int((coords["y"] / disp_h) * 720)
                 hit = nearest_station(cx, cy)
                 if hit and hit != st.session_state["selected"]:
                     st.session_state["selected"]    = hit
