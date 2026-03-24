@@ -163,12 +163,17 @@ def inject_all_css():
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 사이드바 토글 버튼 — 모바일에서 더 크게 + 주소바 고려한 실제 중앙 */
+        /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
-            width: 36px !important;
-            height: 72px !important;
+            width: 52px !important;
+            height: 110px !important;
             top: 50dvh !important;
             transform: translateY(-50%) !important;
+            border-radius: 0 16px 16px 0 !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+            font-size: 11px !important;
+            opacity: 1 !important;
         }
         /* 사이드바 노선 버튼 — 모바일 터치 크기 */
         section[data-testid='stSidebar'] .stButton button {
@@ -349,81 +354,25 @@ def inject_all_css():
         }}, 600);
     }}
 
-    // 사이드바 CSS 직접 열기/닫기 함수 (React 우회)
-    function ypfOpenSidebar() {{
-        const wd = window.parent.document;
-        const sidebar = wd.querySelector('section[data-testid="stSidebar"]');
-        if (!sidebar) return;
-        sidebar.style.setProperty('transform', 'translateX(0px)', 'important');
-        sidebar.style.setProperty('transition', 'transform 0.25s ease', 'important');
-        // 백드롭 생성/표시
-        let bd = wd.getElementById('ypf-bd');
-        if (!bd) {{
-            bd = wd.createElement('div');
-            bd.id = 'ypf-bd';
-            Object.assign(bd.style, {{
-                position:'fixed', inset:'0', zIndex:'998',
-                background:'rgba(0,0,0,0.35)',
-            }});
-            bd.ontouchend = bd.onclick = function(e) {{
-                e.stopPropagation();
-                const s = wd.querySelector('section[data-testid="stSidebar"]');
-                if (s) {{ s.style.removeProperty('transform'); s.style.removeProperty('transition'); }}
-                bd.style.display = 'none';
-                updateFab();
-            }};
-            wd.body.appendChild(bd);
-        }}
-        bd.style.display = 'block';
-        const fab = wd.getElementById('ypf-fab');
-        if (fab) fab.style.display = 'none';
-    }}
-
-    // Streamlit 재실행 후에도 CSS 열림 상태 유지
+    // 모바일에서 사이드바 토글 버튼에 "정류장" 라벨 추가
     (function() {{
-        const bd = window.parent.document.getElementById('ypf-bd');
-        if (bd && bd.style.display !== 'none') ypfOpenSidebar();
-    }})();
-
-    // 모바일 전용 사이드바 플로팅 버튼 (화면 우하단)
-    (function() {{
-        const wd = window.parent.document;
-        let fab = wd.getElementById('ypf-fab');
-        if (!fab) {{
-            fab = wd.createElement('button');
-            fab.id = 'ypf-fab';
-            fab.innerHTML = '&#9776; 정류장';
-            Object.assign(fab.style, {{
-                position: 'fixed', bottom: '80px', right: '16px',
-                zIndex: '99999', background: '#2a5298', color: 'white',
-                border: 'none', borderRadius: '24px', padding: '12px 20px',
-                fontSize: '15px', fontWeight: '700', cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
-                display: 'none', alignItems: 'center', gap: '6px',
-                touchAction: 'manipulation', pointerEvents: 'all',
-            }});
-            wd.body.appendChild(fab);
-        }}
-        fab.onclick = ypfOpenSidebar;
-        fab.ontouchend = function(e) {{ e.preventDefault(); ypfOpenSidebar(); }};
-    }})();
-
-    // FAB 표시/숨김 (모바일만, 사이드바 닫혀있을 때만)
-    function updateFab() {{
-        const wd = window.parent.document;
-        const fab = wd.getElementById('ypf-fab');
-        if (!fab) return;
         const isMobile = window.parent.innerWidth <= 900 || window.parent.innerHeight > window.parent.innerWidth;
-        const sidebar = wd.querySelector('[data-testid="stSidebar"]');
-        const bd = wd.getElementById('ypf-bd');
-        const sidebarOpen = (sidebar && sidebar.getBoundingClientRect().left >= -10)
-                          || (bd && bd.style.display !== 'none');
-        fab.style.display = (isMobile && !sidebarOpen) ? 'flex' : 'none';
-    }}
+        if (!isMobile) return;
+        const btn = window.parent.document.querySelector('button[data-testid="collapsedControl"]');
+        if (!btn || btn.querySelector('.ypf-lbl')) return;
+        const lbl = window.parent.document.createElement('span');
+        lbl.className = 'ypf-lbl';
+        lbl.textContent = '정류장';
+        Object.assign(lbl.style, {{
+            display:'block', fontSize:'10px', color:'white',
+            fontWeight:'700', lineHeight:'1', marginTop:'2px',
+            pointerEvents:'none',
+        }});
+        btn.appendChild(lbl);
+    }})();
 
     applyStyles();
-    updateFab();
-    new MutationObserver(() => {{ applyStyles(); updateFab(); }})
+    new MutationObserver(() => {{ applyStyles(); }})
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
