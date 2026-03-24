@@ -173,6 +173,11 @@ def inject_all_css():
             z-index: 10 !important;
             background: white !important;
         }
+        /* 정보 패널 컬럼: 지도 뒤로 */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+            position: relative !important;
+            z-index: 1 !important;
+        }
         /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
             display: flex !important;
@@ -642,8 +647,7 @@ def main():
     with col_info:
         sel = st.session_state["selected"]
         if not sel:
-            st.markdown("### 정류장 정보")
-            st.info("지도 또는 사이드바에서 정류장을 선택하세요.")
+            pass
             return
 
         code = STATIONS[sel]["code"]
