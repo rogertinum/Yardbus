@@ -100,7 +100,6 @@ def inject_all_css():
     <link rel="manifest" href="/app/static/manifest.json">
     <style>
     .block-container { padding-top: 1rem !important; }
-    header[data-testid="stHeader"] { display: none !important; }
     #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
     /* 사이드바 오버레이 — 메인 영역 폭 변화 없음 */
