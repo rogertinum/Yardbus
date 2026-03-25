@@ -161,12 +161,17 @@ def inject_all_css():
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
-        /* 노선 버튼 행 wrapper만 간격 제거 (:has 지원 브라우저) */
+        /* 노선 버튼 행 wrapper 간격 제거 */
         [data-testid="stVerticalBlock"] > div:has(> [data-testid="stHorizontalBlock"]) {
             margin-top: 0 !important;
             margin-bottom: 0 !important;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
+        }
+        /* stVerticalBlock 기본 gap 축소 (노선 버튼 행간) */
+        [data-testid="stVerticalBlock"] {
+            gap: 4px !important;
+            row-gap: 4px !important;
         }
         /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
@@ -279,6 +284,12 @@ def inject_all_css():
                     wrapper.style.setProperty('margin-bottom', '0', 'important');
                     wrapper.style.setProperty('padding-top', '0', 'important');
                     wrapper.style.setProperty('padding-bottom', '0', 'important');
+                }}
+                // stVerticalBlock flex gap 강제 축소
+                const vBlock = hBlock.closest('[data-testid="stVerticalBlock"]');
+                if (vBlock) {{
+                    vBlock.style.setProperty('gap', '4px', 'important');
+                    vBlock.style.setProperty('row-gap', '4px', 'important');
                 }}
             }}
 
@@ -724,7 +735,7 @@ def main():
                 st.session_state["active_dir"] = terminal_dir
                 st.rerun()
             elif not terminal_dir:
-                st.markdown("**방향 선택**")
+                st.markdown("<p style='margin-top:12px;margin-bottom:4px;font-weight:700'>방향 선택</p>", unsafe_allow_html=True)
                 for d in ["1", "2"]:
                     end, prev, nxt = get_direction_parts(sel, active_line, d)
                     is_act   = st.session_state.get("active_dir") == d
