@@ -161,12 +161,6 @@ def inject_all_css():
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
-        /* 노선 버튼 컨테이너 내부 행간 축소 */
-        [data-testid="stVerticalBlockBorderWrapper"] > [data-testid="stVerticalBlock"],
-        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] {
-            gap: 4px !important;
-            row-gap: 4px !important;
-        }
         /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
@@ -177,15 +171,18 @@ def inject_all_css():
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 안쪽 stHorizontalBlock(노선 버튼 행)은 가로 배치 유지 */
+        /* 안쪽 stHorizontalBlock(노선 버튼)은 가로+줄바꿈 — 3개씩 자동 wrap */
         [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
+            flex-wrap: wrap !important;
             align-items: stretch !important;
+            gap: 4px !important;
         }
         [data-testid="stColumn"] [data-testid="stColumn"] {
-            flex: 1 !important;
-            width: auto !important;
+            flex: 0 0 calc(33.33% - 3px) !important;
+            max-width: calc(33.33% - 3px) !important;
             min-width: 0 !important;
+            width: auto !important;
         }
         /* 지도 컬럼: 스크롤해도 상단 고정 */
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
@@ -269,16 +266,6 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 컨테이너 stVerticalBlock gap 축소
-            // st.container()로 감쌌으므로 closest()가 컨테이너 내부 vBlock을 먼저 찾음
-            if (!isSbBtn) {{
-                const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
-                const vBlock = hBlock && hBlock.closest('[data-testid="stVerticalBlock"]');
-                if (vBlock) {{
-                    vBlock.style.setProperty('gap', '4px', 'important');
-                    vBlock.style.setProperty('row-gap', '4px', 'important');
-                }}
-            }}
 
             // 메인패널: 선택이 있으면 나머지 흐리게
             if (!isSbBtn) {{
@@ -698,17 +685,14 @@ def main():
             st.warning("운행 노선 정보를 불러올 수 없습니다.")
         else:
             line_items = list(all_lines.items())
-            with st.container():
-                for row_start in range(0, len(line_items), 3):
-                    row = line_items[row_start : row_start + 3]
-                    cols = st.columns(len(row))
-                    for col, (line_id, _) in zip(cols, row):
-                        label = LINE_DISPLAY.get(line_id, line_id)
-                        if col.button(label, key=f"line_{line_id}",
-                                      use_container_width=True):
-                            st.session_state["active_line"] = line_id
-                            st.session_state["active_dir"]  = None
-                            st.rerun()
+            cols = st.columns(len(line_items))
+            for col, (line_id, _) in zip(cols, line_items):
+                label = LINE_DISPLAY.get(line_id, line_id)
+                if col.button(label, key=f"line_{line_id}",
+                              use_container_width=True):
+                    st.session_state["active_line"] = line_id
+                    st.session_state["active_dir"]  = None
+                    st.rerun()
             # JS에 메인패널 선택 상태 전달
             main_label = LINE_DISPLAY.get(st.session_state["active_line"], "")
             st.markdown(f'<div id="ypf-main" data-val="{main_label}" style="display:none"></div>',
