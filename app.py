@@ -154,6 +154,18 @@ def inject_all_css():
         background: transparent !important;
         background-color: transparent !important;
     }
+    /* 노선 버튼: CSS grid 3열 레이아웃 (PC/모바일 공통) */
+    [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 4px !important;
+    }
+    [data-testid="stColumn"] [data-testid="stColumn"] {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        flex: unset !important;
+    }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
@@ -170,18 +182,6 @@ def inject_all_css():
             flex: none !important;
             width: 100% !important;
             min-width: 100% !important;
-        }
-        /* 안쪽 stHorizontalBlock(노선 버튼): CSS grid 3열 레이아웃 */
-        [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
-            display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 4px !important;
-        }
-        [data-testid="stColumn"] [data-testid="stColumn"] {
-            min-width: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
-            flex: unset !important;
         }
         /* 지도 컬럼: 스크롤해도 상단 고정 */
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
