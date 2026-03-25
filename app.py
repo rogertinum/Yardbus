@@ -171,18 +171,17 @@ def inject_all_css():
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 안쪽 stHorizontalBlock(노선 버튼)은 가로+줄바꿈 — 3개씩 자동 wrap */
+        /* 안쪽 stHorizontalBlock(노선 버튼): CSS grid 3열 레이아웃 */
         [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            align-items: stretch !important;
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
             gap: 4px !important;
         }
         [data-testid="stColumn"] [data-testid="stColumn"] {
-            flex: 0 0 calc(33.33% - 3px) !important;
-            max-width: calc(33.33% - 3px) !important;
             min-width: 0 !important;
-            width: auto !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            flex: unset !important;
         }
         /* 지도 컬럼: 스크롤해도 상단 고정 */
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
