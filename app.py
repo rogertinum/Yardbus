@@ -168,11 +168,6 @@ def inject_all_css():
             padding-top: 0 !important;
             padding-bottom: 0 !important;
         }
-        /* stVerticalBlock 기본 gap 축소 (노선 버튼 행간) */
-        [data-testid="stVerticalBlock"] {
-            gap: 4px !important;
-            row-gap: 4px !important;
-        }
         /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
@@ -275,21 +270,21 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 행 wrapper 마진/패딩 제거 (:has 미지원 브라우저 폴백)
+            // 노선 버튼 행 wrapper: 첫 행은 0, 이후 행은 음수 마진으로 행간 축소
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
             if (hBlock) {{
                 const wrapper = hBlock.parentElement;
                 if (wrapper) {{
-                    wrapper.style.setProperty('margin-top', '0', 'important');
                     wrapper.style.setProperty('margin-bottom', '0', 'important');
                     wrapper.style.setProperty('padding-top', '0', 'important');
                     wrapper.style.setProperty('padding-bottom', '0', 'important');
-                }}
-                // stVerticalBlock flex gap 강제 축소
-                const vBlock = hBlock.closest('[data-testid="stVerticalBlock"]');
-                if (vBlock) {{
-                    vBlock.style.setProperty('gap', '4px', 'important');
-                    vBlock.style.setProperty('row-gap', '4px', 'important');
+                    // 이전 형제도 노선 버튼 행인 경우 음수 마진으로 행간 제거
+                    const prev = wrapper.previousElementSibling;
+                    if (prev && prev.querySelector('[data-testid="stHorizontalBlock"]')) {{
+                        wrapper.style.setProperty('margin-top', '-12px', 'important');
+                    }} else {{
+                        wrapper.style.setProperty('margin-top', '0', 'important');
+                    }}
                 }}
             }}
 
@@ -735,7 +730,7 @@ def main():
                 st.session_state["active_dir"] = terminal_dir
                 st.rerun()
             elif not terminal_dir:
-                st.markdown("<p style='margin-top:12px;margin-bottom:4px;font-weight:700'>방향 선택</p>", unsafe_allow_html=True)
+                st.markdown("**방향 선택**")
                 for d in ["1", "2"]:
                     end, prev, nxt = get_direction_parts(sel, active_line, d)
                     is_act   = st.session_state.get("active_dir") == d
