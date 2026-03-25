@@ -162,7 +162,8 @@ def inject_all_css():
             padding-right: 8px !important;
         }
         /* 노선 버튼 컨테이너 내부 행간 축소 */
-        [data-testid="stVerticalBlockBorderWrapper"] > [data-testid="stVerticalBlock"] {
+        [data-testid="stVerticalBlockBorderWrapper"] > [data-testid="stVerticalBlock"],
+        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] {
             gap: 4px !important;
             row-gap: 4px !important;
         }
@@ -268,14 +269,14 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 컨테이너 stVerticalBlock gap 축소 (JS 폴백)
+            // 노선 버튼 컨테이너 stVerticalBlock gap 축소
+            // hBlock → wrapper div → stVerticalBlock(container) 순서
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
-            if (hBlock) {{
-                const containerVBlock = hBlock.closest('[data-testid="stVerticalBlockBorderWrapper"]')
-                    ?.querySelector('[data-testid="stVerticalBlock"]');
-                if (containerVBlock) {{
-                    containerVBlock.style.setProperty('gap', '4px', 'important');
-                    containerVBlock.style.setProperty('row-gap', '4px', 'important');
+            if (hBlock && !isSbBtn) {{
+                const vBlock = hBlock.parentElement && hBlock.parentElement.parentElement;
+                if (vBlock) {{
+                    vBlock.style.setProperty('gap', '4px', 'important');
+                    vBlock.style.setProperty('row-gap', '4px', 'important');
                 }}
             }}
 
