@@ -161,12 +161,10 @@ def inject_all_css():
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
-        /* 노선 버튼 행 wrapper 간격 제거 */
-        [data-testid="stVerticalBlock"] > div:has(> [data-testid="stHorizontalBlock"]) {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
+        /* 노선 버튼 컨테이너 내부 행간 축소 */
+        [data-testid="stVerticalBlockBorderWrapper"] > [data-testid="stVerticalBlock"] {
+            gap: 4px !important;
+            row-gap: 4px !important;
         }
         /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
@@ -270,21 +268,14 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 행 wrapper: 첫 행은 0, 이후 행은 음수 마진으로 행간 축소
+            // 노선 버튼 컨테이너 stVerticalBlock gap 축소 (JS 폴백)
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
             if (hBlock) {{
-                const wrapper = hBlock.parentElement;
-                if (wrapper) {{
-                    wrapper.style.setProperty('margin-bottom', '0', 'important');
-                    wrapper.style.setProperty('padding-top', '0', 'important');
-                    wrapper.style.setProperty('padding-bottom', '0', 'important');
-                    // 이전 형제도 노선 버튼 행인 경우 음수 마진으로 행간 제거
-                    const prev = wrapper.previousElementSibling;
-                    if (prev && prev.querySelector('[data-testid="stHorizontalBlock"]')) {{
-                        wrapper.style.setProperty('margin-top', '-12px', 'important');
-                    }} else {{
-                        wrapper.style.setProperty('margin-top', '0', 'important');
-                    }}
+                const containerVBlock = hBlock.closest('[data-testid="stVerticalBlockBorderWrapper"]')
+                    ?.querySelector('[data-testid="stVerticalBlock"]');
+                if (containerVBlock) {{
+                    containerVBlock.style.setProperty('gap', '4px', 'important');
+                    containerVBlock.style.setProperty('row-gap', '4px', 'important');
                 }}
             }}
 
@@ -706,16 +697,17 @@ def main():
             st.warning("운행 노선 정보를 불러올 수 없습니다.")
         else:
             line_items = list(all_lines.items())
-            for row_start in range(0, len(line_items), 3):
-                row = line_items[row_start : row_start + 3]
-                cols = st.columns(len(row))
-                for col, (line_id, _) in zip(cols, row):
-                    label = LINE_DISPLAY.get(line_id, line_id)
-                    if col.button(label, key=f"line_{line_id}",
-                                  use_container_width=True):
-                        st.session_state["active_line"] = line_id
-                        st.session_state["active_dir"]  = None
-                        st.rerun()
+            with st.container():
+                for row_start in range(0, len(line_items), 3):
+                    row = line_items[row_start : row_start + 3]
+                    cols = st.columns(len(row))
+                    for col, (line_id, _) in zip(cols, row):
+                        label = LINE_DISPLAY.get(line_id, line_id)
+                        if col.button(label, key=f"line_{line_id}",
+                                      use_container_width=True):
+                            st.session_state["active_line"] = line_id
+                            st.session_state["active_dir"]  = None
+                            st.rerun()
             # JS에 메인패널 선택 상태 전달
             main_label = LINE_DISPLAY.get(st.session_state["active_line"], "")
             st.markdown(f'<div id="ypf-main" data-val="{main_label}" style="display:none"></div>',
