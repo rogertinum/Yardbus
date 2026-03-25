@@ -161,10 +161,12 @@ def inject_all_css():
             padding-left: 8px !important;
             padding-right: 8px !important;
         }
-        /* 모바일 전체 요소 간격 축소 */
-        [data-testid="stVerticalBlock"] {
-            gap: 6px !important;
-            row-gap: 6px !important;
+        /* 노선 버튼 행 wrapper만 간격 제거 (:has 지원 브라우저) */
+        [data-testid="stVerticalBlock"] > div:has(> [data-testid="stHorizontalBlock"]) {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
         }
         /* 바깥 컬럼(지도/정보패널) 세로 배치 */
         [data-testid="stHorizontalBlock"] {
@@ -268,22 +270,15 @@ def inject_all_css():
             if (stBtn) stBtn.style.setProperty('background', 'transparent', 'important');
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
-            // 노선 버튼 행 간격 제거
+            // 노선 버튼 행 wrapper 마진/패딩 제거 (:has 미지원 브라우저 폴백)
             const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
             if (hBlock) {{
-                // wrapper div(부모) 마진/패딩 제거
                 const wrapper = hBlock.parentElement;
                 if (wrapper) {{
                     wrapper.style.setProperty('margin-top', '0', 'important');
                     wrapper.style.setProperty('margin-bottom', '0', 'important');
                     wrapper.style.setProperty('padding-top', '0', 'important');
                     wrapper.style.setProperty('padding-bottom', '0', 'important');
-                }}
-                // stVerticalBlock(조부모) gap 축소 — 실제 행간 간격 발생원
-                const vBlock = wrapper && wrapper.parentElement;
-                if (vBlock && vBlock.getAttribute('data-testid') === 'stVerticalBlock') {{
-                    vBlock.style.setProperty('gap', '4px', 'important');
-                    vBlock.style.setProperty('row-gap', '4px', 'important');
                 }}
             }}
 
