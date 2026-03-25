@@ -270,10 +270,10 @@ def inject_all_css():
             const stCol = btn.closest('[data-testid="stColumn"]');
             if (stCol) stCol.style.setProperty('background', 'transparent', 'important');
             // 노선 버튼 컨테이너 stVerticalBlock gap 축소
-            // hBlock → wrapper div → stVerticalBlock(container) 순서
-            const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
-            if (hBlock && !isSbBtn) {{
-                const vBlock = hBlock.parentElement && hBlock.parentElement.parentElement;
+            // st.container()로 감쌌으므로 closest()가 컨테이너 내부 vBlock을 먼저 찾음
+            if (!isSbBtn) {{
+                const hBlock = btn.closest('[data-testid="stHorizontalBlock"]');
+                const vBlock = hBlock && hBlock.closest('[data-testid="stVerticalBlock"]');
                 if (vBlock) {{
                     vBlock.style.setProperty('gap', '4px', 'important');
                     vBlock.style.setProperty('row-gap', '4px', 'important');
