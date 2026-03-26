@@ -360,27 +360,27 @@ def inject_all_css(line_display):
         [data-testid="stButton"] button {
             min-height: 48px !important;
         }
-        /* 헤더 행: 모바일에서도 타이틀+언어선택을 가로 배치 유지 */
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child {
-            flex-direction: row !important;
-        }
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"] {
-            flex: auto !important;
-            min-width: 0 !important;
+        /* 헤더 행: 언어선택이 타이틀 위에 오도록 세로 스택 유지
+           (일반 규칙 flex-direction:column 그대로 사용)
+           언어선택 컬럼(last-child) → order:-1로 타이틀 위 오른쪽 정렬 */
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:last-child {
+            order: -1 !important;
+            flex: 0 0 auto !important;
             width: auto !important;
-            /* sticky·white bg 규칙 차단 — 다크모드 흰 배경 방지 */
+            min-width: 100px !important;
+            max-width: 150px !important;
+            align-self: flex-end !important;
             position: static !important;
             background: transparent !important;
             top: auto !important;
             z-index: auto !important;
         }
+        /* 타이틀 컬럼(first-child): sticky·white bg 차단 */
         .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:first-child {
-            flex-grow: 1 !important;
-        }
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:not(:first-child) {
-            flex: 0 0 auto !important;
-            min-width: 80px !important;
-            max-width: 120px !important;
+            position: static !important;
+            background: transparent !important;
+            top: auto !important;
+            z-index: auto !important;
         }
     }
     </style>
@@ -534,6 +534,18 @@ def inject_all_css(line_display):
             btn.style.filter = '';
         }});
 
+        // 헤더 행 컬럼 배경 강제 투명화 (CSS 우선순위와 무관하게 적용)
+        const hdrRow = window.parent.document.querySelector(
+            '[data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child'
+        );
+        if (hdrRow) {{
+            hdrRow.querySelectorAll(':scope > [data-testid="stColumn"]').forEach(col => {{
+                col.style.setProperty('background', 'transparent', 'important');
+                col.style.setProperty('background-color', 'transparent', 'important');
+                col.style.setProperty('position', 'static', 'important');
+            }});
+        }}
+
         // 사이드바 정류장 버튼
         if (!sidebar) return;
         sidebar.querySelectorAll('[data-testid="stButton"] button').forEach(btn => {{
@@ -563,16 +575,17 @@ def inject_all_css(line_display):
         }}
     }})();
 
-    // 첫 진입 시 사이드바 항상 닫기 (재진입 방지: sessionStorage)
+    // 첫 진입 시 사이드바 닫기 (sessionStorage로 1회만 실행)
     if (!window.parent.sessionStorage.getItem('ypf_init')) {{
         window.parent.sessionStorage.setItem('ypf_init', '1');
         setTimeout(() => {{
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!btn || !sidebar) return;
-            const rect = sidebar.getBoundingClientRect();
-            const isOpen = rect.left > -50;
-            if (isOpen) {{ btn.click(); }}   // 열려있으면 닫기
+            // display:none이면 이미 닫혀있음 (rect.left 기반 판단은 부정확)
+            const sbStyle = window.parent.getComputedStyle(sidebar);
+            const isVisible = sbStyle.display !== 'none' && sbStyle.visibility !== 'hidden';
+            if (isVisible) {{ btn.click(); }}
         }}, 600);
     }}
 
