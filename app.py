@@ -30,6 +30,51 @@ LINE_TEXT_COLOR = {
     "J1": "#222222",  # 노란 배경엔 검정 글씨
 }
 
+# ── 다국어 텍스트 ──────────────────────────────────────────────────────────────
+TEXTS = {
+    "ko": {
+        "title": "야드 버스 시간표",
+        "spinner_lines": "노선 조회 중...",
+        "spinner_timetable": "시간표 불러오는 중...",
+        "no_lines": "운행 노선 정보를 불러올 수 없습니다.",
+        "select_station": "지도 또는 사이드바에서 정류장을 선택하세요.",
+        "dir_select": "**방향 선택**",
+        "next_bus": "🚌 다음 버스",
+        "last_bus": "막차",
+        "next2": "그 다음",
+        "next3": "그 다다음",
+        "no_service": "🚫 오늘 운행 종료",
+        "no_timetable": "시간표 없음",
+        "full_timetable": "📋 전체 시간표",
+        "refresh": "🔄 새로고침",
+        "sidebar_hint": "노선을 선택하면 정류장 목록이 표시됩니다.",
+        "route_stops": "{r} 정류장",
+    },
+    "en": {
+        "title": "Yard Bus Schedule",
+        "spinner_lines": "Loading routes...",
+        "spinner_timetable": "Loading timetable...",
+        "no_lines": "Could not load route information.",
+        "select_station": "Select a stop on the map or sidebar.",
+        "dir_select": "**Select direction**",
+        "next_bus": "🚌 Next Bus",
+        "last_bus": "Last",
+        "next2": "2nd next",
+        "next3": "3rd next",
+        "no_service": "🚫 No more service today",
+        "no_timetable": "No timetable",
+        "full_timetable": "📋 Full timetable",
+        "refresh": "🔄 Refresh",
+        "sidebar_hint": "Select a route to see stops.",
+        "route_stops": "{r} Stops",
+    },
+}
+
+LINE_DISPLAY_EN = {
+    "A": "Route A", "C": "Route C", "J1": "Route J1",
+    "J2": "Route J2", "K": "Route K", "NH": "Route NH",
+}
+
 # 환승 가능 정류장 (태극 마커 — 여러 노선 교차)
 TRANSFER_STATIONS = {"여객선공장", "회사정문", "설계1관", "LNG관", "6안벽관", "C2식당", "해양관"}
 
@@ -91,7 +136,7 @@ def get_direction_parts(station_name: str, route_id: str, direction: str):
     return ordered[-1], (ordered[idx-1] if idx > 0 else None), (ordered[idx+1] if idx < n-1 else None)
 
 # ── CSS / JS 주입 ─────────────────────────────────────────────────────────────
-def inject_all_css():
+def inject_all_css(line_display):
     st.markdown("""
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -233,7 +278,7 @@ def inject_all_css():
     """, unsafe_allow_html=True)
 
     color_map = {
-        LINE_DISPLAY[k]: {"bg": v, "text": LINE_TEXT_COLOR.get(k, "white")}
+        line_display[k]: {"bg": v, "text": LINE_TEXT_COLOR.get(k, "white")}
         for k, v in LINE_COLORS.items()
     }
     color_map_json = json.dumps(color_map, ensure_ascii=False)
@@ -351,8 +396,9 @@ def inject_all_css():
             const wrapper = btn.closest('[data-testid="stButton"]');
             if (wrapper) wrapper.style.setProperty('margin-bottom', '-8px', 'important');
 
-            // 활성 감지: 종점 이름이 버튼 텍스트 앞부분에 포함되는지 확인 (띄어쓰기 포함)
-            const isActive = activeDirEnd !== '' && text.startsWith('[' + activeDirEnd + '] 방면');
+            // 활성 감지: 첫 번째 p태그에 종점 이름 포함 여부 (한국어/영어 공통)
+            const firstP = btn.querySelector('p');
+            const isActive = activeDirEnd !== '' && firstP && firstP.innerText.trim().includes('[' + activeDirEnd + ']');
             if (isActive) {{
                 btn.style.setProperty('background', '#dbeafe', 'important');
                 btn.style.setProperty('background-color', '#dbeafe', 'important');
@@ -482,24 +528,24 @@ def fetch_timetable(station_code: str, direction: str, line: str) -> list:
     return []
 
 # ── 다음 버스 표시 ─────────────────────────────────────────────────────────────
-def render_next_buses(times: list, line_color: str) -> str:
+def render_next_buses(times: list, line_color: str, T: dict) -> str:
     def fmt(raw): return raw[:2] + ":" + raw[2:]
     upcoming = [t for t in times if t["TIME_PASS_YN"] == "N"]
     if not times:
-        return "<div style='color:#aaa;padding:8px;text-align:center'>시간표 없음</div>"
+        return f"<div style='color:#aaa;padding:8px;text-align:center'>{T['no_timetable']}</div>"
     if not upcoming:
-        return "<div style='color:#aaa;padding:8px;text-align:center'>🚫 오늘 운행 종료</div>"
+        return f"<div style='color:#aaa;padding:8px;text-align:center'>{T['no_service']}</div>"
     is_last = len(upcoming) == 1
     html = (
         f"<div style='background:{line_color}18;border-left:4px solid {line_color};"
         f"padding:12px 16px;border-radius:6px;margin-bottom:4px;text-align:center'>"
-        f"🚌 다음 버스"
-        f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">막차</span>' if is_last else ''}<br>"
+        f"{T['next_bus']}"
+        f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">' + T['last_bus'] + '</span>' if is_last else ''}<br>"
         f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>"
         f"{fmt(upcoming[0]['TIME'])}</span></div>"
     )
     if not is_last:
-        for label, idx in [("그 다음", 1), ("그 다다음", 2)]:
+        for label, idx in [(T["next2"], 1), (T["next3"], 2)]:
             if len(upcoming) > idx:
                 html += (
                     f"<div style='padding:2px 16px;color:#555;font-size:0.92em;text-align:center'>"
@@ -509,10 +555,10 @@ def render_next_buses(times: list, line_color: str) -> str:
     return html
 
 # ── 전체 시간표 표시 ───────────────────────────────────────────────────────────
-def render_full_timetable(times: list, line_color: str) -> None:
+def render_full_timetable(times: list, line_color: str, T: dict) -> None:
     def fmt(raw): return raw[:2] + ":" + raw[2:]
     if not times:
-        st.caption("시간표 없음")
+        st.caption(T["no_timetable"])
         return
     cells = []
     for t in times:
@@ -599,7 +645,7 @@ def nearest_station(cx, cy, threshold=35):
     return best
 
 # ── 사이드바 ───────────────────────────────────────────────────────────────────
-def render_sidebar():
+def render_sidebar(T: dict, line_display: dict):
     routes = load_routes()
     open_route = st.session_state.get("sidebar_open_route", None)
 
@@ -610,7 +656,7 @@ def render_sidebar():
             row = route_ids[row_start : row_start + 3]
             cols = st.columns(len(row))
             for col, line_id in zip(cols, row):
-                label   = LINE_DISPLAY[line_id]
+                label   = line_display[line_id]
                 is_open = open_route == line_id
                 if col.button(label, key=f"sb_route_{line_id}",
                               use_container_width=True,
@@ -619,7 +665,7 @@ def render_sidebar():
                     st.rerun()
 
         # JS에 사이드바 선택 상태 전달
-        sb_label = LINE_DISPLAY.get(open_route, "")
+        sb_label = line_display.get(open_route, "")
         st.markdown(f'<div id="ypf-sb" data-val="{sb_label}" style="display:none"></div>',
                     unsafe_allow_html=True)
 
@@ -629,7 +675,8 @@ def render_sidebar():
             color = LINE_COLORS.get(open_route, "#888")
             st.markdown(
                 f"<div style='text-align:center;font-size:0.85em;font-weight:700;"
-                f"color:{color};margin-bottom:6px'>{LINE_DISPLAY[open_route]} 정류장</div>",
+                f"color:{color};margin-bottom:6px'>"
+                f"{T['route_stops'].format(r=line_display[open_route])}</div>",
                 unsafe_allow_html=True
             )
             for station in routes["routes"][open_route]["stations"]:
@@ -643,24 +690,45 @@ def render_sidebar():
                     st.rerun()
         else:
             st.markdown(
-                "<div style='color:#aaa;font-size:0.82em'>노선을 선택하면 정류장 목록이 표시됩니다.</div>",
+                f"<div style='color:#aaa;font-size:0.82em'>{T['sidebar_hint']}</div>",
                 unsafe_allow_html=True
             )
 
 
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 def main():
-    st.markdown(f"## 🚌 야드 버스 시간표 <span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>", unsafe_allow_html=True)
-
     # 세션 초기화
     for key, default in [("selected", None), ("active_line", None),
                          ("active_dir", None), ("sidebar_open_route", None),
-                         ("_last_click", None)]:
+                         ("_last_click", None), ("lang", "ko")]:
         if key not in st.session_state:
             st.session_state[key] = default
 
-    inject_all_css()
-    render_sidebar()
+    lang = st.session_state["lang"]
+    T = TEXTS[lang]
+    line_display = LINE_DISPLAY_EN if lang == "en" else LINE_DISPLAY
+
+    # 타이틀 + 언어 선택기
+    LANG_OPTIONS = {"🇰🇷 KOR": "ko", "🇬🇧 ENG": "en"}
+    col_hdr, col_lang = st.columns([6, 1])
+    with col_hdr:
+        st.markdown(
+            f"## 🚌 {T['title']} "
+            f"<span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>",
+            unsafe_allow_html=True,
+        )
+    with col_lang:
+        sel_lang = st.selectbox(
+            "", list(LANG_OPTIONS.keys()),
+            index=list(LANG_OPTIONS.values()).index(lang),
+            label_visibility="collapsed",
+        )
+        if LANG_OPTIONS[sel_lang] != lang:
+            st.session_state["lang"] = LANG_OPTIONS[sel_lang]
+            st.rerun()
+
+    inject_all_css(line_display)
+    render_sidebar(T, line_display)
 
     col_map, col_info = st.columns([3, 1])
 
@@ -691,24 +759,23 @@ def main():
     with col_info:
         sel = st.session_state["selected"]
         if not sel:
-            st.info("지도 또는 사이드바에서 정류장을 선택하세요.")
+            st.info(T["select_station"])
             return
 
         code = STATIONS[sel]["code"]
         st.markdown(f"### {sel}")
 
-        # STEP 1: 노선 선택 (3열 그리드)
-        with st.spinner("노선 조회 중..."):
+        # STEP 1: 노선 선택
+        with st.spinner(T["spinner_lines"]):
             all_lines = fetch_all_lines(code)
 
         if not all_lines:
-            st.warning("운행 노선 정보를 불러올 수 없습니다.")
+            st.warning(T["no_lines"])
         else:
             line_items = list(all_lines.items())
             if len(line_items) == 1:
-                # 1개 노선: st.columns(1) stHorizontalBlock 생성 없이 직접 렌더링
                 line_id, _ = line_items[0]
-                label = LINE_DISPLAY.get(line_id, line_id)
+                label = line_display.get(line_id, line_id)
                 if st.button(label, key=f"line_{line_id}",
                              use_container_width=True):
                     st.session_state["active_line"] = line_id
@@ -722,14 +789,14 @@ def main():
                     row = line_items[i : i + cols_per_row]
                     row_cols = st.columns(len(row))
                     for col, (line_id, _) in zip(row_cols, row):
-                        label = LINE_DISPLAY.get(line_id, line_id)
+                        label = line_display.get(line_id, line_id)
                         if col.button(label, key=f"line_{line_id}",
                                       use_container_width=True):
                             st.session_state["active_line"] = line_id
                             st.session_state["active_dir"]  = None
                             st.rerun()
             # JS에 메인패널 선택 상태 전달
-            main_label = LINE_DISPLAY.get(st.session_state["active_line"], "")
+            main_label = line_display.get(st.session_state["active_line"], "")
             st.markdown(f'<div id="ypf-main" data-val="{main_label}" style="display:none"></div>',
                         unsafe_allow_html=True)
 
@@ -738,17 +805,17 @@ def main():
         if active_line and active_line in all_lines:
             terminal_dir = get_terminal_direction(sel, active_line)
             if terminal_dir and st.session_state["active_dir"] != terminal_dir:
-                # 시·종점: 방향 자동 선택, 버튼 미표시
                 st.session_state["active_dir"] = terminal_dir
                 st.rerun()
             elif not terminal_dir:
-                st.markdown("**방향 선택**")
+                st.markdown(T["dir_select"])
                 for d in ["1", "2"]:
                     end, prev, nxt = get_direction_parts(sel, active_line, d)
-                    is_act   = st.session_state.get("active_dir") == d
+                    is_act    = st.session_state.get("active_dir") == d
                     prev_bold = f"**[{prev}]**" if prev else ""
                     nxt_bold  = f"**[{nxt}]**" if nxt else ""
-                    label = f"**[{end}] 방면**\n\n{prev_bold} → [{sel}] → {nxt_bold}"
+                    first_line = f"**[{end}] 방면**" if lang == "ko" else f"**To [{end}]**"
+                    label = f"{first_line}\n\n{prev_bold} → [{sel}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
                         st.session_state["active_dir"] = d
@@ -767,14 +834,14 @@ def main():
         active_dir = st.session_state["active_dir"]
         if active_line and active_dir:
             line_color = LINE_COLORS.get(active_line, "#888")
-            with st.spinner("시간표 불러오는 중..."):
+            with st.spinner(T["spinner_timetable"]):
                 times = fetch_timetable(code, active_dir, active_line)
-            st.markdown(render_next_buses(times, line_color), unsafe_allow_html=True)
-            with st.expander("📋 전체 시간표"):
-                render_full_timetable(times, line_color)
+            st.markdown(render_next_buses(times, line_color, T), unsafe_allow_html=True)
+            with st.expander(T["full_timetable"]):
+                render_full_timetable(times, line_color, T)
 
         st.markdown("")
-        if st.button("🔄 새로고침", use_container_width=True):
+        if st.button(T["refresh"], use_container_width=True):
             st.session_state["active_line"] = None
             st.session_state["active_dir"]  = None
             st.rerun()
