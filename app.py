@@ -802,7 +802,7 @@ def main():
         line_display = LINE_DISPLAY
 
     # 타이틀 + 언어 선택기
-    LANG_OPTIONS = {"🇰🇷": "ko", "🇺🇸": "en", "🇯🇵": "ja"}
+    LANG_OPTIONS = {"🇰🇷 한국어": "ko", "🇺🇸 English": "en", "🇯🇵 日本語": "ja"}
     col_hdr, col_lang = st.columns([6, 1])
     with col_hdr:
         st.markdown(
@@ -918,7 +918,7 @@ def main():
                     elif lang == "en":
                         first_line = f"**To [{end_d}]**"
                     else:
-                        first_line = f"**[{end_d}]行き**"
+                        first_line = f"**[{end_d}]行き**  \n({end})"
                     label = f"{first_line}\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
