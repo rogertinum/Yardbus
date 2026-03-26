@@ -356,6 +356,23 @@ def inject_all_css(line_display):
         [data-testid="stButton"] button {
             min-height: 48px !important;
         }
+        /* 헤더 행: 모바일에서도 타이틀+국기 버튼을 가로 배치 유지 */
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child {
+            flex-direction: row !important;
+        }
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"] {
+            flex: auto !important;
+            min-width: 0 !important;
+            width: auto !important;
+        }
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:first-child {
+            flex-grow: 1 !important;
+        }
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:not(:first-child) {
+            flex: 0 0 36px !important;
+            min-width: 36px !important;
+            max-width: 36px !important;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -420,6 +437,28 @@ def inject_all_css(line_display):
             }}
         }});
 
+        // 언어 버튼: 텍스트 식별자 → 국기 이미지로 교체
+        const currentLang = getState('ypf-lang');
+        const langBtnMap = {{
+            'ypf-lang-ko': {{src: 'https://flagcdn.com/w40/kr.png', code: 'ko'}},
+            'ypf-lang-en': {{src: 'https://flagcdn.com/w40/us.png', code: 'en'}},
+            'ypf-lang-ja': {{src: 'https://flagcdn.com/w40/jp.png', code: 'ja'}},
+        }};
+        allBtns.forEach(btn => {{
+            const text = btn.innerText.trim();
+            if (!langBtnMap[text]) return;
+            const info = langBtnMap[text];
+            const isActive = currentLang === info.code;
+            btn.innerHTML = `<img src="${{info.src}}" style="height:20px;width:auto;display:block;margin:auto;border-radius:2px;pointer-events:none">`;
+            btn.style.setProperty('padding', '4px 2px', 'important');
+            btn.style.setProperty('min-height', '30px', 'important');
+            btn.style.setProperty('background', isActive ? '#dbeafe' : 'transparent', 'important');
+            btn.style.setProperty('border', isActive ? '2px solid #3b82f6' : '1px solid #d1d5db', 'important');
+            btn.style.setProperty('box-shadow', isActive ? '0 0 0 2px #93c5fd' : 'none', 'important');
+            btn.style.opacity = '1';
+            btn.style.filter = '';
+        }});
+
         // 방향 버튼: ypf-dir에 저장된 종점 이름으로 활성 감지
         const activeDirEnd = getState('ypf-dir');
         allBtns.forEach(btn => {{
@@ -456,10 +495,17 @@ def inject_all_css(line_display):
                 strongs[0].style.setProperty('margin', '0 0 2px 0', 'important');
                 strongs[0].style.setProperty('line-height', '1', 'important');
             }}
-            // 이전/다음 줄: 두 번째 p태그를 한 줄 고정, 넘치면 폰트 자동 축소
+            // 이전/다음 줄: 마지막 p태그를 한 줄 고정, 넘치면 폰트 자동 축소
             const dirStrongs = Array.from(strongs).slice(1);
             if (dirStrongs.length > 0) {{
                 const pTags = btn.querySelectorAll('p');
+                // p태그 3개 = 비한/영 언어: 중간 p(한국어 힌트) 소형화
+                if (pTags.length >= 3) {{
+                    const hintP = pTags[1];
+                    hintP.style.setProperty('font-size', '0.7em', 'important');
+                    hintP.style.setProperty('color', '#999', 'important');
+                    hintP.style.setProperty('line-height', '1', 'important');
+                }}
                 const p2 = pTags.length >= 2 ? pTags[pTags.length - 1] : null;
                 if (p2) p2.style.setProperty('white-space', 'nowrap', 'important');
                 let fs = 1.4;
@@ -801,24 +847,24 @@ def main():
     else:
         line_display = LINE_DISPLAY
 
-    # 타이틀 + 언어 선택기
-    LANG_OPTIONS = {"🇰🇷 한국어": "ko", "🇺🇸 English": "en", "🇯🇵 日本語": "ja"}
-    col_hdr, col_lang = st.columns([6, 1])
+    # 타이틀 + 언어 선택기 (국기 이미지 버튼)
+    col_hdr, col_ko, col_en, col_ja = st.columns([4.5, 0.5, 0.5, 0.5])
     with col_hdr:
         st.markdown(
             f"## 🚌 {T['title']} "
             f"<span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>",
             unsafe_allow_html=True,
         )
-    with col_lang:
-        sel_lang = st.selectbox(
-            "", list(LANG_OPTIONS.keys()),
-            index=list(LANG_OPTIONS.values()).index(lang),
-            label_visibility="collapsed",
-        )
-        if LANG_OPTIONS[sel_lang] != lang:
-            st.session_state["lang"] = LANG_OPTIONS[sel_lang]
-            st.rerun()
+    # 언어 버튼: 텍스트는 JS 식별자, applyStyles()가 국기 이미지로 교체
+    if col_ko.button("ypf-lang-ko", key="ypf_lang_ko", use_container_width=True):
+        st.session_state["lang"] = "ko"; st.rerun()
+    if col_en.button("ypf-lang-en", key="ypf_lang_en", use_container_width=True):
+        st.session_state["lang"] = "en"; st.rerun()
+    if col_ja.button("ypf-lang-ja", key="ypf_lang_ja", use_container_width=True):
+        st.session_state["lang"] = "ja"; st.rerun()
+    # JS에 현재 언어 전달
+    st.markdown(f'<div id="ypf-lang" data-val="{lang}" style="display:none"></div>',
+                unsafe_allow_html=True)
 
     inject_all_css(line_display)
     render_sidebar(T, line_display, lang)
@@ -918,8 +964,11 @@ def main():
                     elif lang == "en":
                         first_line = f"**To [{end_d}]**"
                     else:
-                        first_line = f"**[{end_d}]行き**  \n({end})"
-                    label = f"{first_line}\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
+                        first_line = f"**[{end_d}]行き**"
+                    if lang not in ("ko", "en"):
+                        label = f"{first_line}\n\n({end})\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
+                    else:
+                        label = f"{first_line}\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
                         st.session_state["active_dir"] = d
