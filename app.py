@@ -93,8 +93,8 @@ LINE_DISPLAY_EN = {
     "J2": "Route J2", "K": "Route K", "NH": "Route NH",
 }
 LINE_DISPLAY_JA = {
-    "A": "Aルート", "C": "Cルート", "J1": "J1ルート",
-    "J2": "J2ルート", "K": "Kルート", "NH": "NHルート",
+    "A": "A ルート", "C": "C ルート", "J1": "J1 ルート",
+    "J2": "J2 ルート", "K": "K ルート", "NH": "NH ルート",
 }
 
 # 지도 이미지에 표기된 영문 정류장 명칭
@@ -274,6 +274,8 @@ def inject_all_css(line_display):
         padding: 0 4px !important;
         line-height: 1.2 !important;
         white-space: normal !important;
+        word-break: keep-all !important;
+        overflow-wrap: break-word !important;
     }
     /* 터치 반응성 — 300ms 딜레이 제거 */
     button { touch-action: manipulation !important; }
@@ -356,7 +358,7 @@ def inject_all_css(line_display):
         [data-testid="stButton"] button {
             min-height: 48px !important;
         }
-        /* 헤더 행: 모바일에서도 타이틀+국기 버튼을 가로 배치 유지 */
+        /* 헤더 행: 모바일에서도 타이틀+언어선택을 가로 배치 유지 */
         .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child {
             flex-direction: row !important;
         }
@@ -369,9 +371,9 @@ def inject_all_css(line_display):
             flex-grow: 1 !important;
         }
         .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:not(:first-child) {
-            flex: 0 0 36px !important;
-            min-width: 36px !important;
-            max-width: 36px !important;
+            flex: 0 0 auto !important;
+            min-width: 80px !important;
+            max-width: 120px !important;
         }
     }
     </style>
@@ -435,28 +437,6 @@ def inject_all_css(line_display):
                 btn.style.setProperty('box-shadow', 'none', 'important');
                 btn.style.filter = '';
             }}
-        }});
-
-        // 언어 버튼: 텍스트 식별자 → 국기 이미지로 교체
-        const currentLang = getState('ypf-lang');
-        const langBtnMap = {{
-            'ypf-lang-ko': {{src: 'https://flagcdn.com/w40/kr.png', code: 'ko'}},
-            'ypf-lang-en': {{src: 'https://flagcdn.com/w40/us.png', code: 'en'}},
-            'ypf-lang-ja': {{src: 'https://flagcdn.com/w40/jp.png', code: 'ja'}},
-        }};
-        allBtns.forEach(btn => {{
-            const text = btn.innerText.trim();
-            if (!langBtnMap[text]) return;
-            const info = langBtnMap[text];
-            const isActive = currentLang === info.code;
-            btn.innerHTML = `<img src="${{info.src}}" style="height:20px;width:auto;display:block;margin:auto;border-radius:2px;pointer-events:none">`;
-            btn.style.setProperty('padding', '4px 2px', 'important');
-            btn.style.setProperty('min-height', '30px', 'important');
-            btn.style.setProperty('background', isActive ? '#dbeafe' : 'transparent', 'important');
-            btn.style.setProperty('border', isActive ? '2px solid #3b82f6' : '1px solid #d1d5db', 'important');
-            btn.style.setProperty('box-shadow', isActive ? '0 0 0 2px #93c5fd' : 'none', 'important');
-            btn.style.opacity = '1';
-            btn.style.filter = '';
         }});
 
         // 방향 버튼: ypf-dir에 저장된 종점 이름으로 활성 감지
@@ -812,8 +792,8 @@ def render_sidebar(T: dict, line_display: dict, lang: str = "ko"):
                 is_selected = st.session_state.get("selected") == station
                 disp = stn(station, lang)
                 if lang not in ("ko", "en"):
-                    disp_full = f"{disp}  \n({station})"
-                    s_label = f"◀ {disp}  \n({station}) ▶" if is_selected else disp_full
+                    s_label = (f"◀ {disp} ▶  \n({station})"
+                               if is_selected else f"{disp}  \n({station})")
                 else:
                     s_label = f"◀ {disp} ▶" if is_selected else disp
                 if st.button(s_label, key=f"sb_st_{open_route}_{station}",
@@ -834,9 +814,12 @@ def main():
     # 세션 초기화
     for key, default in [("selected", None), ("active_line", None),
                          ("active_dir", None), ("sidebar_open_route", None),
-                         ("_last_click", None), ("lang", "ko")]:
+                         ("_last_click", None)]:
         if key not in st.session_state:
             st.session_state[key] = default
+    if "lang" not in st.session_state:
+        qp = st.query_params.get("lang", "ko")
+        st.session_state["lang"] = qp if qp in TEXTS else "ko"
 
     lang = st.session_state["lang"]
     T = TEXTS[lang]
@@ -847,24 +830,78 @@ def main():
     else:
         line_display = LINE_DISPLAY
 
-    # 타이틀 + 언어 선택기 (국기 이미지 버튼)
-    col_hdr, col_ko, col_en, col_ja = st.columns([4.5, 0.5, 0.5, 0.5])
+    # 타이틀 + 언어 선택기 (국기 이미지 드롭다운)
+    LANG_OPTS = [
+        ("ko", "https://flagcdn.com/w20/kr.png", "한국어"),
+        ("en", "https://flagcdn.com/w20/us.png", "English"),
+        ("ja", "https://flagcdn.com/w20/jp.png", "日本語"),
+    ]
+    cur_flag, cur_label = next((img, lbl) for c, img, lbl in LANG_OPTS if c == lang)
+    items_json = json.dumps([{"code": c, "img": i, "label": l} for c, i, l in LANG_OPTS],
+                            ensure_ascii=False)
+
+    col_hdr, col_lang = st.columns([5, 1])
     with col_hdr:
         st.markdown(
             f"## 🚌 {T['title']} "
             f"<span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>",
             unsafe_allow_html=True,
         )
-    # 언어 버튼: 텍스트는 JS 식별자, applyStyles()가 국기 이미지로 교체
-    if col_ko.button("ypf-lang-ko", key="ypf_lang_ko", use_container_width=True):
-        st.session_state["lang"] = "ko"; st.rerun()
-    if col_en.button("ypf-lang-en", key="ypf_lang_en", use_container_width=True):
-        st.session_state["lang"] = "en"; st.rerun()
-    if col_ja.button("ypf-lang-ja", key="ypf_lang_ja", use_container_width=True):
-        st.session_state["lang"] = "ja"; st.rerun()
-    # JS에 현재 언어 전달
-    st.markdown(f'<div id="ypf-lang" data-val="{lang}" style="display:none"></div>',
-                unsafe_allow_html=True)
+    with col_lang:
+        components.html(f"""
+        <style>
+        html,body{{margin:0;padding:0;background:transparent;overflow:visible;font-family:sans-serif}}
+        #trigger{{display:flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #d1d5db;
+            border-radius:6px;background:white;cursor:pointer;width:100%;font-size:12px;
+            white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.06)}}
+        #trigger:hover{{border-color:#3b82f6}}
+        #arrow{{margin-left:auto;font-size:9px;color:#9ca3af}}
+        </style>
+        <button id="trigger" onclick="openDrop()">
+            <img src="{cur_flag}" style="height:13px;border-radius:2px;flex-shrink:0">
+            <span>{cur_label}</span>
+            <span id="arrow">▼</span>
+        </button>
+        <script>
+        const ITEMS = {items_json};
+        const CUR = '{lang}';
+        function openDrop(){{
+            const ex = window.parent.document.getElementById('ypf-langdrop');
+            if(ex){{ex.remove();return;}}
+            const iframe = window.frameElement;
+            const r = iframe.getBoundingClientRect();
+            const drop = window.parent.document.createElement('div');
+            drop.id = 'ypf-langdrop';
+            drop.style.cssText = 'position:fixed;top:'+(r.bottom+2)+'px;right:'+(window.parent.innerWidth-r.right)+'px;'+
+                'background:white;border:1px solid #d1d5db;border-radius:8px;'+
+                'box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:99999;overflow:hidden;min-width:120px';
+            ITEMS.forEach(it=>{{
+                const el = window.parent.document.createElement('div');
+                const act = it.code===CUR;
+                el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;'+
+                    'font-size:13px;white-space:nowrap;font-family:sans-serif;'+
+                    'background:'+(act?'#eff6ff':'white')+';color:'+(act?'#1d4ed8':'#374151');
+                el.innerHTML = '<img src="'+it.img+'" style="height:14px;border-radius:2px"><span>'+it.label+'</span>';
+                if(act)el.innerHTML += '<span style="margin-left:auto;font-size:10px">✓</span>';
+                el.onmouseenter=()=>el.style.background=act?'#dbeafe':'#f9fafb';
+                el.onmouseleave=()=>el.style.background=act?'#eff6ff':'white';
+                el.onclick=()=>{{
+                    drop.remove();
+                    const u=new URL(window.parent.location.href);
+                    u.searchParams.set('lang',it.code);
+                    window.parent.location.href=u.toString();
+                }};
+                drop.appendChild(el);
+            }});
+            window.parent.document.body.appendChild(drop);
+            setTimeout(()=>{{
+                window.parent.document.addEventListener('click',function h(e){{
+                    if(!drop.contains(e.target)){{drop.remove();window.parent.document.removeEventListener('click',h);}}
+                }});
+            }},0);
+        }}
+        </script>
+        """, height=36, scrolling=False)
 
     inject_all_css(line_display)
     render_sidebar(T, line_display, lang)
