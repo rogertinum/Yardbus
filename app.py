@@ -298,6 +298,13 @@ def inject_all_css(line_display):
         width: 100% !important;
         flex: unset !important;
     }
+    /* JS injection 요소 높이 최소화 (height=0 iframe 래퍼) */
+    [data-testid="stCustomComponentV1"] {
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         .block-container {
@@ -315,24 +322,20 @@ def inject_all_css(line_display):
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 지도 컬럼: 스크롤해도 상단 고정 */
-        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+        /* 지도 컬럼만 sticky — 최상위 stVerticalBlock의 두 번째 stHorizontalBlock 첫 stColumn */
+        /* > 조합자: 내부 중첩 stVerticalBlock(노선 버튼 등)은 제외 */
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:first-child,
+        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:first-child {
             position: sticky !important;
             top: 3.5rem !important;
             z-index: 10 !important;
-            background: white !important;
+            background: var(--background-color) !important;
         }
         /* 정보 패널 컬럼: 지도 뒤로 */
-        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:last-child,
+        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:last-child {
             position: relative !important;
             z-index: 1 !important;
-        }
-        /* only-child: first+last 규칙 충돌 방지 (예: 노선 2개 이하 레이아웃) */
-        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:only-child {
-            position: static !important;
-            top: auto !important;
-            z-index: auto !important;
-            background: transparent !important;
         }
         /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
@@ -360,27 +363,21 @@ def inject_all_css(line_display):
         [data-testid="stButton"] button {
             min-height: 48px !important;
         }
-        /* 헤더 행: 언어선택이 타이틀 위에 오도록 세로 스택 유지
-           (일반 규칙 flex-direction:column 그대로 사용)
-           언어선택 컬럼(last-child) → order:-1로 타이틀 위 오른쪽 정렬 */
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:last-child {
+        /* 헤더 행 언어선택 컬럼: 타이틀보다 위에 표시 */
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:last-child,
+        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:last-child {
             order: -1 !important;
             flex: 0 0 auto !important;
             width: auto !important;
             min-width: 100px !important;
             max-width: 150px !important;
             align-self: flex-end !important;
-            position: static !important;
-            background: transparent !important;
-            top: auto !important;
-            z-index: auto !important;
         }
-        /* 타이틀 컬럼(first-child): sticky·white bg 차단 */
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:first-child {
-            position: static !important;
-            background: transparent !important;
-            top: auto !important;
-            z-index: auto !important;
+        /* 헤더 행과 지도 사이 여백 최소화 */
+        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child,
+        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child {
+            margin-bottom: 4px !important;
+            padding-bottom: 0 !important;
         }
     }
     </style>
@@ -534,16 +531,25 @@ def inject_all_css(line_display):
             btn.style.filter = '';
         }});
 
-        // 헤더 행 컬럼 배경 강제 투명화 (CSS 우선순위와 무관하게 적용)
-        const hdrRow = window.parent.document.querySelector(
-            '[data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child'
-        );
+        // 헤더 행 컬럼 배경 강제 투명화 + 모바일 언어선택 컬럼 순서 조정
+        // 사이드바 제외 후 첫 번째 stHorizontalBlock = 헤더 행
+        const allHBlocksMain = [...window.parent.document.querySelectorAll('[data-testid="stHorizontalBlock"]')]
+            .filter(el => !el.closest('[data-testid="stSidebar"]'));
+        const hdrRow = allHBlocksMain.length > 0 ? allHBlocksMain[0] : null;
         if (hdrRow) {{
-            hdrRow.querySelectorAll(':scope > [data-testid="stColumn"]').forEach(col => {{
+            const hdrCols = hdrRow.querySelectorAll(':scope > [data-testid="stColumn"]');
+            hdrCols.forEach(col => {{
                 col.style.setProperty('background', 'transparent', 'important');
                 col.style.setProperty('background-color', 'transparent', 'important');
                 col.style.setProperty('position', 'static', 'important');
+                col.style.setProperty('top', 'auto', 'important');
             }});
+            // 모바일: 언어선택(last) 컬럼을 타이틀 위로 이동 (CSS order 보완)
+            const isMobile = window.parent.innerWidth <= 768;
+            if (isMobile && hdrCols.length >= 2) {{
+                hdrCols[hdrCols.length - 1].style.setProperty('order', '-1', 'important');
+                hdrCols[0].style.setProperty('order', '0', 'important');
+            }}
         }}
 
         // 사이드바 정류장 버튼
@@ -582,10 +588,10 @@ def inject_all_css(line_display):
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!btn || !sidebar) return;
-            // display:none이면 이미 닫혀있음 (rect.left 기반 판단은 부정확)
-            const sbStyle = window.parent.getComputedStyle(sidebar);
-            const isVisible = sbStyle.display !== 'none' && sbStyle.visibility !== 'hidden';
-            if (isVisible) {{ btn.click(); }}
+            // Streamlit은 transform으로 sidebar를 숨김 (display:none 아님) → rect.left로 판단
+            const rect = sidebar.getBoundingClientRect();
+            const isOpen = rect.left > -10;
+            if (isOpen) {{ btn.click(); }}
         }}, 600);
     }}
 
