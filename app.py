@@ -68,11 +68,33 @@ TEXTS = {
         "sidebar_hint": "Select a route to see stops.",
         "route_stops": "{r} Stops",
     },
+    "ja": {
+        "title": "ヤードバス時刻表",
+        "spinner_lines": "路線を確認中...",
+        "spinner_timetable": "時刻表を読み込み中...",
+        "no_lines": "路線情報を取得できません。",
+        "select_station": "地図またはサイドバーで停留所を選択してください。",
+        "dir_select": "**方向選択**",
+        "next_bus": "🚌 次のバス",
+        "last_bus": "最終",
+        "next2": "次々便",
+        "next3": "次々々便",
+        "no_service": "🚫 本日の運行終了",
+        "no_timetable": "時刻表なし",
+        "full_timetable": "📋 全時刻表",
+        "refresh": "🔄 更新",
+        "sidebar_hint": "路線を選択すると停留所一覧が表示されます。",
+        "route_stops": "{r} 停留所",
+    },
 }
 
 LINE_DISPLAY_EN = {
     "A": "Route A", "C": "Route C", "J1": "Route J1",
     "J2": "Route J2", "K": "Route K", "NH": "Route NH",
+}
+LINE_DISPLAY_JA = {
+    "A": "Aルート", "C": "Cルート", "J1": "J1ルート",
+    "J2": "J2ルート", "K": "Kルート", "NH": "NHルート",
 }
 
 # 지도 이미지에 표기된 영문 정류장 명칭
@@ -101,11 +123,40 @@ STATION_NAMES_EN = {
     "C2식당":     "Dining Hall C2",
     "해양관":     "Offshore Office",
 }
+STATION_NAMES_JA = {
+    "가로지식당": "カロジ食堂",
+    "여객선공장": "フェリー工場",
+    "회사정문":   "正門",
+    "공장정문":   "工場正門",
+    "설계1관":    "設計1館",
+    "한마음관":   "ハンマウム館",
+    "3도크헤드":  "3ドックヘッド",
+    "D식당":      "D食堂",
+    "피솔관":     "ピソル館",
+    "G3도크입구": "G3ドック入口",
+    "사곡공장":   "サゴク工場",
+    "의장관":     "艤装館",
+    "B식당":      "B食堂",
+    "1도크헤드":  "1ドックヘッド",
+    "선각공장":   "船殻工場",
+    "A식당":      "A食堂",
+    "LNG관":      "LNG館",
+    "K안벽":      "K岸壁",
+    "6안벽관":    "6岸壁館",
+    "J안벽":      "J岸壁",
+    "해양삼거리": "海洋三叉路",
+    "C2식당":     "C2食堂",
+    "해양관":     "海洋館",
+}
 
 
 def stn(name: str, lang: str) -> str:
     """Return station display name for the given language."""
-    return STATION_NAMES_EN.get(name, name) if lang == "en" else name
+    if lang == "en":
+        return STATION_NAMES_EN.get(name, name)
+    if lang == "ja":
+        return STATION_NAMES_JA.get(name, name)
+    return name
 
 # 환승 가능 정류장 (태극 마커 — 여러 노선 교차)
 TRANSFER_STATIONS = {"여객선공장", "회사정문", "설계1관", "LNG관", "6안벽관", "C2식당", "해양관"}
@@ -714,7 +765,11 @@ def render_sidebar(T: dict, line_display: dict, lang: str = "ko"):
             for station in routes["routes"][open_route]["stations"]:
                 is_selected = st.session_state.get("selected") == station
                 disp = stn(station, lang)
-                s_label = f"◀ {disp} ▶" if is_selected else disp
+                if lang not in ("ko", "en"):
+                    disp_full = f"{disp}  \n({station})"
+                    s_label = f"◀ {disp}  \n({station}) ▶" if is_selected else disp_full
+                else:
+                    s_label = f"◀ {disp} ▶" if is_selected else disp
                 if st.button(s_label, key=f"sb_st_{open_route}_{station}",
                              use_container_width=True):
                     st.session_state["selected"]    = station
@@ -739,10 +794,15 @@ def main():
 
     lang = st.session_state["lang"]
     T = TEXTS[lang]
-    line_display = LINE_DISPLAY_EN if lang == "en" else LINE_DISPLAY
+    if lang == "en":
+        line_display = LINE_DISPLAY_EN
+    elif lang == "ja":
+        line_display = LINE_DISPLAY_JA
+    else:
+        line_display = LINE_DISPLAY
 
     # 타이틀 + 언어 선택기
-    LANG_OPTIONS = {"🇰🇷 KOR": "ko", "🇺🇸 ENG": "en"}
+    LANG_OPTIONS = {"🇰🇷": "ko", "🇺🇸": "en", "🇯🇵": "ja"}
     col_hdr, col_lang = st.columns([6, 1])
     with col_hdr:
         st.markdown(
@@ -797,6 +857,8 @@ def main():
 
         code = STATIONS[sel]["code"]
         st.markdown(f"### {stn(sel, lang)}")
+        if lang not in ("ko", "en"):
+            st.caption(sel)
 
         # STEP 1: 노선 선택
         with st.spinner(T["spinner_lines"]):
@@ -851,7 +913,12 @@ def main():
                     sel_d  = stn(sel,  lang)
                     prev_bold = f"**[{prev_d}]**" if prev_d else ""
                     nxt_bold  = f"**[{nxt_d}]**"  if nxt_d  else ""
-                    first_line = f"**[{end_d}] 방면**" if lang == "ko" else f"**To [{end_d}]**"
+                    if lang == "ko":
+                        first_line = f"**[{end_d}] 방면**"
+                    elif lang == "en":
+                        first_line = f"**To [{end_d}]**"
+                    else:
+                        first_line = f"**[{end_d}]行き**"
                     label = f"{first_line}\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
