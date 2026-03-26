@@ -230,8 +230,6 @@ def inject_all_css(line_display):
     .block-container { padding-top: 3.5rem !important; }
     /* 타이틀과 지도 사이 여백 최소화 */
     .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
-    .block-container [data-testid="stMarkdown"]:first-child { margin-bottom: 0 !important; }
-    #root > div:first-child { padding-top: 0 !important; }
     hr { margin: 6px 0 !important; }
     /* 사이드바 오버레이 — 메인 영역 폭 변화 없음 */
     section[data-testid="stSidebar"] {
@@ -557,7 +555,6 @@ def inject_all_css(line_display):
         sidebar.querySelectorAll('[data-testid="stButton"] button').forEach(btn => {{
             const text = btn.innerText.trim();
             if (routeNames.has(text)) return;
-            if (text.startsWith('▸')) return;
             const isSel = text.startsWith('◀');
             btn.style.setProperty('font-size', '0.82em', 'important');
             btn.style.setProperty('padding', '3px 10px', 'important');
@@ -582,19 +579,26 @@ def inject_all_css(line_display):
     }})();
 
     // 첫 진입·새로고침 시 사이드바 닫기
-    // window.parent 변수 사용 → 탭 내에서 Streamlit rerun 시엔 유지, 새로고침 시엔 초기화
-    if (!window.parent._ypfSidebarClosed) {{
-        window.parent._ypfSidebarClosed = true;
-        setTimeout(() => {{
+    // window.parent._ypfSidebarClosed: rerun 시 유지, 새로고침 시 초기화
+    // Streamlit이 localStorage에서 사이드바 상태를 복원하는 타이밍이 늦을 수 있으므로
+    // 600ms + 1500ms 두 번 체크 — 닫힌 걸 확인한 후에만 flag 설정
+    (function() {{
+        let _closed = false;
+        function tryClose() {{
+            if (_closed || window.parent._ypfSidebarClosed) return;
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!btn || !sidebar) return;
-            // Streamlit은 transform으로 sidebar를 숨김 (display:none 아님) → rect.left로 판단
             const rect = sidebar.getBoundingClientRect();
-            const isOpen = rect.left > -10;
-            if (isOpen) {{ btn.click(); }}
-        }}, 800);
-    }}
+            if (rect.left > -50) {{
+                _closed = true;
+                window.parent._ypfSidebarClosed = true;
+                btn.click();
+            }}
+        }}
+        setTimeout(tryClose, 600);
+        setTimeout(tryClose, 1500);
+    }})();
 
     // 모바일에서 사이드바 토글 버튼에 "정류장" 라벨 추가
     (function() {{
