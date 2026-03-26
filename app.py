@@ -51,7 +51,7 @@ TEXTS = {
         "route_stops": "{r} 정류장",
     },
     "en": {
-        "title": "Yard Bus Schedule",
+        "title": "Yard Bus Timetable",
         "spinner_lines": "Loading routes...",
         "spinner_timetable": "Loading timetable...",
         "no_lines": "Could not load route information.",
@@ -59,10 +59,10 @@ TEXTS = {
         "dir_select": "**Select direction**",
         "next_bus": "🚌 Next Bus",
         "last_bus": "Last",
-        "next2": "2nd next",
-        "next3": "3rd next",
+        "next2": "2nd bus",
+        "next3": "3rd bus",
         "no_service": "🚫 No more service today",
-        "no_timetable": "No timetable",
+        "no_timetable": "No timetable available",
         "full_timetable": "📋 Full timetable",
         "refresh": "🔄 Refresh",
         "sidebar_hint": "Select a route to see stops.",
@@ -70,15 +70,15 @@ TEXTS = {
     },
     "ja": {
         "title": "ヤードバス時刻表",
-        "spinner_lines": "路線を確認中...",
+        "spinner_lines": "路線を読み込み中...",
         "spinner_timetable": "時刻表を読み込み中...",
         "no_lines": "路線情報を取得できません。",
         "select_station": "地図またはサイドバーで停留所を選択してください。",
         "dir_select": "**方向選択**",
         "next_bus": "🚌 次のバス",
         "last_bus": "最終",
-        "next2": "次々便",
-        "next3": "次々々便",
+        "next2": "その次",
+        "next3": "さらにその次",
         "no_service": "🚫 本日の運行終了",
         "no_timetable": "時刻表なし",
         "full_timetable": "📋 全時刻表",
@@ -581,9 +581,10 @@ def inject_all_css(line_display):
         }}
     }})();
 
-    // 첫 진입 시 사이드바 닫기 (sessionStorage로 1회만 실행)
-    if (!window.parent.sessionStorage.getItem('ypf_init')) {{
-        window.parent.sessionStorage.setItem('ypf_init', '1');
+    // 첫 진입·새로고침 시 사이드바 닫기
+    // window.parent 변수 사용 → 탭 내에서 Streamlit rerun 시엔 유지, 새로고침 시엔 초기화
+    if (!window.parent._ypfSidebarClosed) {{
+        window.parent._ypfSidebarClosed = true;
         setTimeout(() => {{
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
@@ -592,7 +593,7 @@ def inject_all_css(line_display):
             const rect = sidebar.getBoundingClientRect();
             const isOpen = rect.left > -10;
             if (isOpen) {{ btn.click(); }}
-        }}, 600);
+        }}, 800);
     }}
 
     // 모바일에서 사이드바 토글 버튼에 "정류장" 라벨 추가
