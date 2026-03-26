@@ -195,6 +195,13 @@ def inject_all_css():
             position: relative !important;
             z-index: 1 !important;
         }
+        /* only-child: first+last 규칙 충돌 방지 (예: 노선 2개 이하 레이아웃) */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:only-child {
+            position: static !important;
+            top: auto !important;
+            z-index: auto !important;
+            background: transparent !important;
+        }
         /* 사이드바 토글 버튼 — 모바일에서 크고 탭하기 쉽게 */
         button[data-testid="collapsedControl"] {
             display: flex !important;
@@ -684,14 +691,24 @@ def main():
             st.warning("운행 노선 정보를 불러올 수 없습니다.")
         else:
             line_items = list(all_lines.items())
-            cols = st.columns(len(line_items))
-            for col, (line_id, _) in zip(cols, line_items):
+            if len(line_items) == 1:
+                # 1개 노선: st.columns(1) stHorizontalBlock 생성 없이 직접 렌더링
+                line_id, _ = line_items[0]
                 label = LINE_DISPLAY.get(line_id, line_id)
-                if col.button(label, key=f"line_{line_id}",
-                              use_container_width=True):
+                if st.button(label, key=f"line_{line_id}",
+                             use_container_width=True):
                     st.session_state["active_line"] = line_id
                     st.session_state["active_dir"]  = None
                     st.rerun()
+            else:
+                cols = st.columns(len(line_items))
+                for col, (line_id, _) in zip(cols, line_items):
+                    label = LINE_DISPLAY.get(line_id, line_id)
+                    if col.button(label, key=f"line_{line_id}",
+                                  use_container_width=True):
+                        st.session_state["active_line"] = line_id
+                        st.session_state["active_dir"]  = None
+                        st.rerun()
             # JS에 메인패널 선택 상태 전달
             main_label = LINE_DISPLAY.get(st.session_state["active_line"], "")
             st.markdown(f'<div id="ypf-main" data-val="{main_label}" style="display:none"></div>',
