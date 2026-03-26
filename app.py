@@ -75,6 +75,38 @@ LINE_DISPLAY_EN = {
     "J2": "Route J2", "K": "Route K", "NH": "Route NH",
 }
 
+# 지도 이미지에 표기된 영문 정류장 명칭
+STATION_NAMES_EN = {
+    "가로지식당": "GAROJI Cafeteria",
+    "여객선공장": "Ferry Factory",
+    "회사정문":   "Main Gate",
+    "공장정문":   "Factory Gate",
+    "설계1관":    "Design 1 Office",
+    "한마음관":   "Business Support Ctr",
+    "3도크헤드":  "3 Dock Head",
+    "D식당":      "Dining Hall D",
+    "피솔관":     "PISOL Office",
+    "G3도크입구": "G3 Dock Gate",
+    "사곡공장":   "SAGOK Factory",
+    "의장관":     "Hull Outfitting Office",
+    "B식당":      "Dining Hall B",
+    "1도크헤드":  "1 Dock Head",
+    "선각공장":   "Hull Shop",
+    "A식당":      "Dining Hall A",
+    "LNG관":      "LNG Office",
+    "K안벽":      "K QUAY",
+    "6안벽관":    "6 QUAY",
+    "J안벽":      "J QUAY",
+    "해양삼거리": "Offshore 3-Way",
+    "C2식당":     "Dining Hall C2",
+    "해양관":     "Offshore Office",
+}
+
+
+def stn(name: str, lang: str) -> str:
+    """Return station display name for the given language."""
+    return STATION_NAMES_EN.get(name, name) if lang == "en" else name
+
 # 환승 가능 정류장 (태극 마커 — 여러 노선 교차)
 TRANSFER_STATIONS = {"여객선공장", "회사정문", "설계1관", "LNG관", "6안벽관", "C2식당", "해양관"}
 
@@ -645,7 +677,7 @@ def nearest_station(cx, cy, threshold=35):
     return best
 
 # ── 사이드바 ───────────────────────────────────────────────────────────────────
-def render_sidebar(T: dict, line_display: dict):
+def render_sidebar(T: dict, line_display: dict, lang: str = "ko"):
     routes = load_routes()
     open_route = st.session_state.get("sidebar_open_route", None)
 
@@ -681,7 +713,8 @@ def render_sidebar(T: dict, line_display: dict):
             )
             for station in routes["routes"][open_route]["stations"]:
                 is_selected = st.session_state.get("selected") == station
-                s_label = f"◀ {station} ▶" if is_selected else station
+                disp = stn(station, lang)
+                s_label = f"◀ {disp} ▶" if is_selected else disp
                 if st.button(s_label, key=f"sb_st_{open_route}_{station}",
                              use_container_width=True):
                     st.session_state["selected"]    = station
@@ -709,7 +742,7 @@ def main():
     line_display = LINE_DISPLAY_EN if lang == "en" else LINE_DISPLAY
 
     # 타이틀 + 언어 선택기
-    LANG_OPTIONS = {"🇰🇷 KOR": "ko", "🇬🇧 ENG": "en"}
+    LANG_OPTIONS = {"🇰🇷 KOR": "ko", "🇺🇸 ENG": "en"}
     col_hdr, col_lang = st.columns([6, 1])
     with col_hdr:
         st.markdown(
@@ -728,7 +761,7 @@ def main():
             st.rerun()
 
     inject_all_css(line_display)
-    render_sidebar(T, line_display)
+    render_sidebar(T, line_display, lang)
 
     col_map, col_info = st.columns([3, 1])
 
@@ -763,7 +796,7 @@ def main():
             return
 
         code = STATIONS[sel]["code"]
-        st.markdown(f"### {sel}")
+        st.markdown(f"### {stn(sel, lang)}")
 
         # STEP 1: 노선 선택
         with st.spinner(T["spinner_lines"]):
@@ -812,10 +845,14 @@ def main():
                 for d in ["1", "2"]:
                     end, prev, nxt = get_direction_parts(sel, active_line, d)
                     is_act    = st.session_state.get("active_dir") == d
-                    prev_bold = f"**[{prev}]**" if prev else ""
-                    nxt_bold  = f"**[{nxt}]**" if nxt else ""
-                    first_line = f"**[{end}] 방면**" if lang == "ko" else f"**To [{end}]**"
-                    label = f"{first_line}\n\n{prev_bold} → [{sel}] → {nxt_bold}"
+                    end_d  = stn(end, lang)
+                    prev_d = stn(prev, lang) if prev else None
+                    nxt_d  = stn(nxt,  lang) if nxt  else None
+                    sel_d  = stn(sel,  lang)
+                    prev_bold = f"**[{prev_d}]**" if prev_d else ""
+                    nxt_bold  = f"**[{nxt_d}]**"  if nxt_d  else ""
+                    first_line = f"**[{end_d}] 방면**" if lang == "ko" else f"**To [{end_d}]**"
+                    label = f"{first_line}\n\n{prev_bold} → [{sel_d}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
                         st.session_state["active_dir"] = d
@@ -824,7 +861,8 @@ def main():
             active_d = st.session_state.get("active_dir", "")
             active_end = ""
             if active_d:
-                active_end, _, _ = get_direction_parts(sel, active_line, active_d)
+                active_end_ko, _, _ = get_direction_parts(sel, active_line, active_d)
+                active_end = stn(active_end_ko, lang)
             st.markdown(
                 f'<div id="ypf-dir" data-val="{active_end}" style="display:none"></div>',
                 unsafe_allow_html=True
