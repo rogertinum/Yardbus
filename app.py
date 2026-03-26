@@ -237,15 +237,17 @@ def inject_all_css(line_display):
     section[data-testid="stSidebar"] {
         position: fixed !important;
         z-index: 999 !important;
-        top: 0 !important;
-        left: 0 !important;
         height: 100dvh !important;
+        /* top/left는 Streamlit이 제어 — 덮어쓰면 접기/펼치기 불가 */
     }
     [data-testid="stAppViewContainer"] > .main {
         margin-left: 0 !important;
     }
     /* 사이드바 토글 버튼 — 화면 중앙 왼쪽, 눈에 띄게 */
     button[data-testid="collapsedControl"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         position: fixed !important;
         left: 0px !important;
         top: 50dvh !important;
@@ -366,6 +368,11 @@ def inject_all_css(line_display):
             flex: auto !important;
             min-width: 0 !important;
             width: auto !important;
+            /* sticky·white bg 규칙 차단 — 다크모드 흰 배경 방지 */
+            position: static !important;
+            background: transparent !important;
+            top: auto !important;
+            z-index: auto !important;
         }
         .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:first-child {
             flex-grow: 1 !important;
@@ -556,18 +563,16 @@ def inject_all_css(line_display):
         }}
     }})();
 
-    // 세션 첫 진입 시: PC(가로>세로)는 닫기, 모바일(세로>가로)은 열기
+    // 첫 진입 시 사이드바 항상 닫기 (재진입 방지: sessionStorage)
     if (!window.parent.sessionStorage.getItem('ypf_init')) {{
         window.parent.sessionStorage.setItem('ypf_init', '1');
         setTimeout(() => {{
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!btn || !sidebar) return;
-            const isPortrait = window.parent.innerHeight > window.parent.innerWidth;
             const rect = sidebar.getBoundingClientRect();
             const isOpen = rect.left > -50;
-            if (isPortrait && !isOpen) {{ btn.click(); }}   // 모바일: 열기
-            else if (!isPortrait && isOpen) {{ btn.click(); }} // PC: 닫기
+            if (isOpen) {{ btn.click(); }}   // 열려있으면 닫기
         }}, 600);
     }}
 
@@ -814,12 +819,9 @@ def main():
     # 세션 초기화
     for key, default in [("selected", None), ("active_line", None),
                          ("active_dir", None), ("sidebar_open_route", None),
-                         ("_last_click", None)]:
+                         ("_last_click", None), ("lang", "ko")]:
         if key not in st.session_state:
             st.session_state[key] = default
-    if "lang" not in st.session_state:
-        qp = st.query_params.get("lang", "ko")
-        st.session_state["lang"] = qp if qp in TEXTS else "ko"
 
     lang = st.session_state["lang"]
     T = TEXTS[lang]
@@ -830,16 +832,8 @@ def main():
     else:
         line_display = LINE_DISPLAY
 
-    # 타이틀 + 언어 선택기 (국기 이미지 드롭다운)
-    LANG_OPTS = [
-        ("ko", "https://flagcdn.com/w20/kr.png", "한국어"),
-        ("en", "https://flagcdn.com/w20/us.png", "English"),
-        ("ja", "https://flagcdn.com/w20/jp.png", "日本語"),
-    ]
-    cur_flag, cur_label = next((img, lbl) for c, img, lbl in LANG_OPTS if c == lang)
-    items_json = json.dumps([{"code": c, "img": i, "label": l} for c, i, l in LANG_OPTS],
-                            ensure_ascii=False)
-
+    # 타이틀 + 언어 선택기
+    LANG_OPTS = [("🇰🇷 한국어", "ko"), ("🇺🇸 English", "en"), ("🇯🇵 日本語", "ja")]
     col_hdr, col_lang = st.columns([5, 1])
     with col_hdr:
         st.markdown(
@@ -848,60 +842,15 @@ def main():
             unsafe_allow_html=True,
         )
     with col_lang:
-        components.html(f"""
-        <style>
-        html,body{{margin:0;padding:0;background:transparent;overflow:visible;font-family:sans-serif}}
-        #trigger{{display:flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #d1d5db;
-            border-radius:6px;background:white;cursor:pointer;width:100%;font-size:12px;
-            white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.06)}}
-        #trigger:hover{{border-color:#3b82f6}}
-        #arrow{{margin-left:auto;font-size:9px;color:#9ca3af}}
-        </style>
-        <button id="trigger" onclick="openDrop()">
-            <img src="{cur_flag}" style="height:13px;border-radius:2px;flex-shrink:0">
-            <span>{cur_label}</span>
-            <span id="arrow">▼</span>
-        </button>
-        <script>
-        const ITEMS = {items_json};
-        const CUR = '{lang}';
-        function openDrop(){{
-            const ex = window.parent.document.getElementById('ypf-langdrop');
-            if(ex){{ex.remove();return;}}
-            const iframe = window.frameElement;
-            const r = iframe.getBoundingClientRect();
-            const drop = window.parent.document.createElement('div');
-            drop.id = 'ypf-langdrop';
-            drop.style.cssText = 'position:fixed;top:'+(r.bottom+2)+'px;right:'+(window.parent.innerWidth-r.right)+'px;'+
-                'background:white;border:1px solid #d1d5db;border-radius:8px;'+
-                'box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:99999;overflow:hidden;min-width:120px';
-            ITEMS.forEach(it=>{{
-                const el = window.parent.document.createElement('div');
-                const act = it.code===CUR;
-                el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;'+
-                    'font-size:13px;white-space:nowrap;font-family:sans-serif;'+
-                    'background:'+(act?'#eff6ff':'white')+';color:'+(act?'#1d4ed8':'#374151');
-                el.innerHTML = '<img src="'+it.img+'" style="height:14px;border-radius:2px"><span>'+it.label+'</span>';
-                if(act)el.innerHTML += '<span style="margin-left:auto;font-size:10px">✓</span>';
-                el.onmouseenter=()=>el.style.background=act?'#dbeafe':'#f9fafb';
-                el.onmouseleave=()=>el.style.background=act?'#eff6ff':'white';
-                el.onclick=()=>{{
-                    drop.remove();
-                    const u=new URL(window.parent.location.href);
-                    u.searchParams.set('lang',it.code);
-                    window.parent.location.href=u.toString();
-                }};
-                drop.appendChild(el);
-            }});
-            window.parent.document.body.appendChild(drop);
-            setTimeout(()=>{{
-                window.parent.document.addEventListener('click',function h(e){{
-                    if(!drop.contains(e.target)){{drop.remove();window.parent.document.removeEventListener('click',h);}}
-                }});
-            }},0);
-        }}
-        </script>
-        """, height=36, scrolling=False)
+        sel_lang = st.selectbox(
+            "", [lbl for lbl, _ in LANG_OPTS],
+            index=next(i for i, (_, c) in enumerate(LANG_OPTS) if c == lang),
+            label_visibility="collapsed",
+        )
+        new_lang = next(c for lbl, c in LANG_OPTS if lbl == sel_lang)
+        if new_lang != lang:
+            st.session_state["lang"] = new_lang
+            st.rerun()
 
     inject_all_css(line_display)
     render_sidebar(T, line_display, lang)
