@@ -320,7 +320,7 @@ def inject_all_css():
                 p.style.setProperty('white-space', ws, 'important');
             }});
 
-            // strong 태그 스타일: 1번째=종점방면(2em), 2번째 이후=이전/다음 정류장(1.4em)
+            // strong 태그 스타일: 1번째=종점방면(2em), 2번째 이후=이전/다음 정류장(자동 크기)
             const strongs = btn.querySelectorAll('p strong, strong');
             if (strongs.length > 0) {{
                 strongs[0].style.setProperty('font-size', '2em', 'important');
@@ -328,9 +328,23 @@ def inject_all_css():
                 strongs[0].style.setProperty('margin', '0 0 2px 0', 'important');
                 strongs[0].style.setProperty('line-height', '1', 'important');
             }}
-            for (let i = 1; i < strongs.length; i++) {{
-                strongs[i].style.setProperty('font-size', '1.4em', 'important');
-                strongs[i].style.setProperty('line-height', '1', 'important');
+            // 이전/다음 줄: 두 번째 p태그를 한 줄 고정, 넘치면 폰트 자동 축소
+            const dirStrongs = Array.from(strongs).slice(1);
+            if (dirStrongs.length > 0) {{
+                const pTags = btn.querySelectorAll('p');
+                const p2 = pTags.length >= 2 ? pTags[pTags.length - 1] : null;
+                if (p2) p2.style.setProperty('white-space', 'nowrap', 'important');
+                let fs = 1.4;
+                dirStrongs.forEach(s => {{
+                    s.style.setProperty('font-size', fs + 'em', 'important');
+                    s.style.setProperty('line-height', '1', 'important');
+                }});
+                if (p2) {{
+                    while (p2.scrollWidth > p2.offsetWidth + 1 && fs > 0.85) {{
+                        fs = Math.round((fs - 0.05) * 100) / 100;
+                        dirStrongs.forEach(s => s.style.setProperty('font-size', fs + 'em', 'important'));
+                    }}
+                }}
             }}
 
             // 버튼 간격 축소: stButton 래퍼 margin 줄이기
@@ -734,7 +748,7 @@ def main():
                     is_act   = st.session_state.get("active_dir") == d
                     prev_bold = f"**[{prev}]**" if prev else ""
                     nxt_bold  = f"**[{nxt}]**" if nxt else ""
-                    label = f"**[{end}] 방면**  \n{prev_bold} → [{sel}] → {nxt_bold}"
+                    label = f"**[{end}] 방면**\n\n{prev_bold} → [{sel}] → {nxt_bold}"
                     if st.button(label, key=f"dir_{d}", use_container_width=True,
                                  type="primary" if is_act else "secondary"):
                         st.session_state["active_dir"] = d
