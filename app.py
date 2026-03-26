@@ -154,10 +154,10 @@ def inject_all_css():
         background: transparent !important;
         background-color: transparent !important;
     }
-    /* 노선 버튼: CSS grid 3열 레이아웃 (PC/모바일 공통) */
+    /* 노선 버튼: CSS grid 레이아웃 — 열 수는 Python이 결정, auto-fit으로 자동 적용 */
     [data-testid="stColumn"] [data-testid="stHorizontalBlock"] {
         display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
         gap: 4px !important;
     }
     [data-testid="stColumn"] [data-testid="stColumn"] {
@@ -701,14 +701,19 @@ def main():
                     st.session_state["active_dir"]  = None
                     st.rerun()
             else:
-                cols = st.columns(len(line_items))
-                for col, (line_id, _) in zip(cols, line_items):
-                    label = LINE_DISPLAY.get(line_id, line_id)
-                    if col.button(label, key=f"line_{line_id}",
-                                  use_container_width=True):
-                        st.session_state["active_line"] = line_id
-                        st.session_state["active_dir"]  = None
-                        st.rerun()
+                # 2→2열, 4→2+2, 3/5/6+→3열
+                n = len(line_items)
+                cols_per_row = 2 if n in (2, 4) else 3
+                for i in range(0, n, cols_per_row):
+                    row = line_items[i : i + cols_per_row]
+                    row_cols = st.columns(len(row))
+                    for col, (line_id, _) in zip(row_cols, row):
+                        label = LINE_DISPLAY.get(line_id, line_id)
+                        if col.button(label, key=f"line_{line_id}",
+                                      use_container_width=True):
+                            st.session_state["active_line"] = line_id
+                            st.session_state["active_dir"]  = None
+                            st.rerun()
             # JS에 메인패널 선택 상태 전달
             main_label = LINE_DISPLAY.get(st.session_state["active_line"], "")
             st.markdown(f'<div id="ypf-main" data-val="{main_label}" style="display:none"></div>',
