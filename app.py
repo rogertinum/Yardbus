@@ -219,7 +219,7 @@ def get_direction_parts(station_name: str, route_id: str, direction: str):
     return ordered[-1], (ordered[idx-1] if idx > 0 else None), (ordered[idx+1] if idx < n-1 else None)
 
 # ── CSS / JS 주입 ─────────────────────────────────────────────────────────────
-def inject_all_css(line_display):
+def inject_all_css(line_display, close_sidebar=False):
     st.markdown("""
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -275,7 +275,6 @@ def inject_all_css(line_display):
         line-height: 1.2 !important;
         white-space: normal !important;
         word-break: keep-all !important;
-        overflow-wrap: break-word !important;
     }
     /* 터치 반응성 — 300ms 딜레이 제거 */
     button { touch-action: manipulation !important; }
@@ -378,7 +377,18 @@ def inject_all_css(line_display):
             padding-bottom: 0 !important;
         }
     }
+    .ypf-footer {
+        position: fixed !important;
+        bottom: 4px !important;
+        right: 8px !important;
+        font-size: 0.68em !important;
+        color: rgba(150, 150, 150, 0.45) !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+        user-select: none !important;
+    }
     </style>
+    <div class="ypf-footer">rogermostwanted@gmail.com</div>
     """, unsafe_allow_html=True)
 
     color_map = {
@@ -578,21 +588,17 @@ def inject_all_css(line_display):
         }}
     }})();
 
-    // 첫 진입·새로고침 시 사이드바 닫기
-    // window.parent._ypfSidebarClosed: rerun 시 유지, 새로고침 시 초기화
-    // Streamlit이 localStorage에서 사이드바 상태를 복원하는 타이밍이 늦을 수 있으므로
-    // 600ms + 1500ms 두 번 체크 — 닫힌 걸 확인한 후에만 flag 설정
+    // 첫 진입·새로고침 시에만 사이드바 닫기
+    // Python session_state가 첫 렌더 여부를 결정 — JS 타이밍 이슈 없음
     (function() {{
-        let _closed = false;
+        const shouldClose = {'true' if close_sidebar else 'false'};
+        if (!shouldClose) return;
         function tryClose() {{
-            if (_closed || window.parent._ypfSidebarClosed) return;
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!btn || !sidebar) return;
             const rect = sidebar.getBoundingClientRect();
             if (rect.left > -50) {{
-                _closed = true;
-                window.parent._ypfSidebarClosed = true;
                 btn.click();
             }}
         }}
@@ -841,9 +847,12 @@ def render_sidebar(T: dict, line_display: dict, lang: str = "ko"):
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 def main():
     # 세션 초기화
+    # sidebar_initialized: 첫 렌더(새로고침/최초진입) 감지용 — 이후 rerun에서는 이미 존재
+    is_first_render = "sidebar_initialized" not in st.session_state
     for key, default in [("selected", None), ("active_line", None),
                          ("active_dir", None), ("sidebar_open_route", None),
-                         ("_last_click", None), ("lang", "ko")]:
+                         ("_last_click", None), ("lang", "ko"),
+                         ("sidebar_initialized", True)]:
         if key not in st.session_state:
             st.session_state[key] = default
 
@@ -876,7 +885,7 @@ def main():
             st.session_state["lang"] = new_lang
             st.rerun()
 
-    inject_all_css(line_display)
+    inject_all_css(line_display, close_sidebar=is_first_render)
     render_sidebar(T, line_display, lang)
 
     col_map, col_info = st.columns([3, 1])
