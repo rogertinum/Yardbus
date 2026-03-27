@@ -880,11 +880,7 @@ def main():
     LANG_OPTS = [("🇰🇷 한국어", "ko"), ("🇺🇸 English", "en"), ("🇯🇵 日本語", "ja")]
     col_hdr, col_lang = st.columns([5, 1])
     with col_hdr:
-        st.markdown(
-            f"## 🚌 {T['title']} "
-            f"<span style='font-size:0.45em;color:#999;font-weight:400;white-space:nowrap'>{BUILD_TIME}</span>",
-            unsafe_allow_html=True,
-        )
+        st.markdown(f"## 🚌 {T['title']}", unsafe_allow_html=True)
     with col_lang:
         sel_lang = st.selectbox(
             "", [lbl for lbl, _ in LANG_OPTS],
