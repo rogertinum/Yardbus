@@ -231,13 +231,10 @@ def inject_all_css(line_display, close_sidebar=False):
     /* 타이틀과 지도 사이 여백 최소화 */
     .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
     hr { margin: 6px 0 !important; }
-    /* 사이드바 오버레이 — Streamlit 기본 positioning 유지, z-index만 올림 */
+    /* 사이드바 — Streamlit 기본 positioning 유지, z-index만 올림 */
     section[data-testid="stSidebar"] {
         z-index: 999 !important;
         height: 100dvh !important;
-    }
-    [data-testid="stAppViewContainer"] > .main {
-        margin-left: 0 !important;
     }
     /* 사이드바 토글 버튼 — 화면 중앙 왼쪽, 눈에 띄게 */
     button[data-testid="collapsedControl"] {
@@ -302,6 +299,10 @@ def inject_all_css(line_display, close_sidebar=False):
     }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
+        /* 모바일: 사이드바가 열려도 메인 영역 폭 변화 없음 (오버레이) */
+        [data-testid="stAppViewContainer"] > .main {
+            margin-left: 0 !important;
+        }
         .block-container {
             padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
             padding-left: 8px !important;
@@ -631,38 +632,8 @@ def inject_all_css(line_display, close_sidebar=False):
         btn.appendChild(lbl);
     }})();
 
-    // 사이드바 외부 클릭·터치로 닫기 — backdrop
-    (function() {{
-        let bd = window.parent.document.getElementById('ypf-backdrop');
-        if (!bd) {{
-            bd = window.parent.document.createElement('div');
-            bd.id = 'ypf-backdrop';
-            Object.assign(bd.style, {{
-                position:'fixed', inset:'0',
-                zIndex:'998',           // 사이드바(999) 아래, 메인 콘텐츠 위
-                background:'rgba(0,0,0,0.25)',
-                display:'none',
-                cursor:'pointer',
-            }});
-            bd.addEventListener('click', function() {{
-                const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-                if (btn) btn.click();
-            }});
-            window.parent.document.body.appendChild(bd);
-        }}
-        window.parent._ypfUpdateBackdrop = function() {{
-            const sb = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (!sb) return;
-            const rect = sb.getBoundingClientRect();
-            // display:none → width==0, transform off-screen → left < -50
-            const open = rect.width > 0 && rect.left > -50;
-            bd.style.display = open ? 'block' : 'none';
-        }};
-        window.parent._ypfUpdateBackdrop();
-    }})();
-
     applyStyles();
-    new MutationObserver(() => {{ applyStyles(); window.parent._ypfUpdateBackdrop?.(); }})
+    new MutationObserver(() => {{ applyStyles(); }})
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
