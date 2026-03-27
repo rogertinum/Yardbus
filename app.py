@@ -231,12 +231,10 @@ def inject_all_css(line_display, close_sidebar=False):
     /* 타이틀과 지도 사이 여백 최소화 */
     .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
     hr { margin: 6px 0 !important; }
-    /* 사이드바 오버레이 — 메인 영역 폭 변화 없음 */
+    /* 사이드바 오버레이 — Streamlit 기본 positioning 유지, z-index만 올림 */
     section[data-testid="stSidebar"] {
-        position: fixed !important;
         z-index: 999 !important;
         height: 100dvh !important;
-        /* top/left는 Streamlit이 제어 — 덮어쓰면 접기/펼치기 불가 */
     }
     [data-testid="stAppViewContainer"] > .main {
         margin-left: 0 !important;
@@ -656,6 +654,7 @@ def inject_all_css(line_display, close_sidebar=False):
             const sb = window.parent.document.querySelector('[data-testid="stSidebar"]');
             if (!sb) return;
             const rect = sb.getBoundingClientRect();
+            // display:none → width==0, transform off-screen → left < -50
             const open = rect.width > 0 && rect.left > -50;
             bd.style.display = open ? 'block' : 'none';
         }};
