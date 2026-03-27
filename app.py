@@ -380,7 +380,7 @@ def inject_all_css(line_display, close_sidebar=False):
     .ypf-footer {
         position: fixed !important;
         bottom: 4px !important;
-        right: 8px !important;
+        left: 8px !important;
         font-size: 0.68em !important;
         color: rgba(150, 150, 150, 0.45) !important;
         pointer-events: none !important;
@@ -388,7 +388,7 @@ def inject_all_css(line_display, close_sidebar=False):
         user-select: none !important;
     }
     </style>
-    <div class="ypf-footer">rogermostwanted@gmail.com</div>
+    <div class="ypf-footer">📧 rogermostwanted@gmail.com</div>
     """, unsafe_allow_html=True)
 
     color_map = {
@@ -588,22 +588,32 @@ def inject_all_css(line_display, close_sidebar=False):
         }}
     }})();
 
-    // 첫 진입·새로고침 시에만 사이드바 닫기
-    // Python session_state가 첫 렌더 여부를 결정 — JS 타이밍 이슈 없음
+    // 첫 진입·새로고침 시에만 사이드바 닫기 (PC/모바일 공통)
+    // Python session_state로 첫 렌더 여부 판단
     (function() {{
         const shouldClose = {'true' if close_sidebar else 'false'};
         if (!shouldClose) return;
+        let done = false;
+        function isSidebarOpen(sb) {{
+            const rect = sb.getBoundingClientRect();
+            // display:none → width==0, 이 경우 left==0이어도 열린 게 아님
+            if (rect.width === 0) return false;
+            return rect.left > -50;
+        }}
         function tryClose() {{
+            if (done) return;
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-            const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (!btn || !sidebar) return;
-            const rect = sidebar.getBoundingClientRect();
-            if (rect.left > -50) {{
+            const sb  = window.parent.document.querySelector('[data-testid="stSidebar"]');
+            if (!btn || !sb) return;
+            if (isSidebarOpen(sb)) {{
+                done = true;
                 btn.click();
             }}
         }}
-        setTimeout(tryClose, 600);
-        setTimeout(tryClose, 1500);
+        setTimeout(tryClose, 300);
+        setTimeout(tryClose, 800);
+        setTimeout(tryClose, 1600);
+        setTimeout(tryClose, 3000);
     }})();
 
     // 모바일에서 사이드바 토글 버튼에 "정류장" 라벨 추가
@@ -933,6 +943,11 @@ def main():
             st.warning(T["no_lines"])
         else:
             line_items = list(all_lines.items())
+            # 노선이 하나면 자동 선택
+            if len(line_items) == 1 and st.session_state["active_line"] != line_items[0][0]:
+                st.session_state["active_line"] = line_items[0][0]
+                st.session_state["active_dir"]  = None
+                st.rerun()
             if len(line_items) == 1:
                 line_id, _ = line_items[0]
                 label = line_display.get(line_id, line_id)
@@ -963,11 +978,14 @@ def main():
         # STEP 2: 방향 선택
         active_line = st.session_state["active_line"]
         if active_line and active_line in all_lines:
+            dirs = all_lines[active_line]["directions"]
             terminal_dir = get_terminal_direction(sel, active_line)
-            if terminal_dir and st.session_state["active_dir"] != terminal_dir:
-                st.session_state["active_dir"] = terminal_dir
+            # 방향이 하나뿐이면 자동 선택 (시·종점 또는 API가 단방향만 반환)
+            auto_dir = terminal_dir or (dirs[0] if len(dirs) == 1 else None)
+            if auto_dir and st.session_state["active_dir"] != auto_dir:
+                st.session_state["active_dir"] = auto_dir
                 st.rerun()
-            elif not terminal_dir:
+            elif not auto_dir:
                 st.markdown(T["dir_select"])
                 for d in ["1", "2"]:
                     end, prev, nxt = get_direction_parts(sel, active_line, d)
