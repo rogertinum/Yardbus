@@ -633,8 +633,37 @@ def inject_all_css(line_display, close_sidebar=False):
         btn.appendChild(lbl);
     }})();
 
+    // 사이드바 외부 클릭·터치로 닫기 — backdrop
+    (function() {{
+        let bd = window.parent.document.getElementById('ypf-backdrop');
+        if (!bd) {{
+            bd = window.parent.document.createElement('div');
+            bd.id = 'ypf-backdrop';
+            Object.assign(bd.style, {{
+                position:'fixed', inset:'0',
+                zIndex:'998',           // 사이드바(999) 아래, 메인 콘텐츠 위
+                background:'rgba(0,0,0,0.25)',
+                display:'none',
+                cursor:'pointer',
+            }});
+            bd.addEventListener('click', function() {{
+                const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+                if (btn) btn.click();
+            }});
+            window.parent.document.body.appendChild(bd);
+        }}
+        window.parent._ypfUpdateBackdrop = function() {{
+            const sb = window.parent.document.querySelector('[data-testid="stSidebar"]');
+            if (!sb) return;
+            const rect = sb.getBoundingClientRect();
+            const open = rect.width > 0 && rect.left > -50;
+            bd.style.display = open ? 'block' : 'none';
+        }};
+        window.parent._ypfUpdateBackdrop();
+    }})();
+
     applyStyles();
-    new MutationObserver(() => {{ applyStyles(); }})
+    new MutationObserver(() => {{ applyStyles(); window.parent._ypfUpdateBackdrop?.(); }})
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
