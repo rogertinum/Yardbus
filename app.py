@@ -231,8 +231,9 @@ def inject_all_css(line_display, close_sidebar=False):
     /* 타이틀과 지도 사이 여백 최소화 */
     .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
     hr { margin: 6px 0 !important; }
-    /* 사이드바 — Streamlit 기본 positioning 유지, z-index만 올림 */
+    /* 사이드바 — position:fixed로 메인 레이아웃 분리 (sticky 지도 작동 조건) */
     section[data-testid="stSidebar"] {
+        position: fixed !important;
         z-index: 999 !important;
         height: 100dvh !important;
     }
@@ -299,13 +300,9 @@ def inject_all_css(line_display, close_sidebar=False):
     }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
-        /* 모바일: 사이드바 오버레이 + sticky 지도 정상 작동 위해 overflow 해제 */
+        /* 모바일: 사이드바 오버레이 */
         [data-testid="stAppViewContainer"] > .main {
             margin-left: 0 !important;
-            overflow: visible !important;
-        }
-        [data-testid="stAppViewContainer"] {
-            overflow: visible !important;
         }
         .block-container {
             padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
@@ -591,32 +588,32 @@ def inject_all_css(line_display, close_sidebar=False):
         }}
     }})();
 
-    // 첫 진입·새로고침 시에만 사이드바 닫기 (PC/모바일 공통)
-    // Python session_state로 첫 렌더 여부 판단
+    // 첫 진입·새로고침 시에만 사이드바 닫기
+    // position:fixed이면 rect 검출 불가 → localStorage로 "expanded" 여부 판단
     (function() {{
         const shouldClose = {'true' if close_sidebar else 'false'};
         if (!shouldClose) return;
-        let done = false;
-        function isSidebarOpen(sb) {{
-            const rect = sb.getBoundingClientRect();
-            // display:none → width==0, 이 경우 left==0이어도 열린 게 아님
-            if (rect.width === 0) return false;
-            return rect.left > -50;
+        function isExpandedInStorage() {{
+            try {{
+                for (const k of Object.keys(window.parent.localStorage)) {{
+                    if (!/sidebar/i.test(k)) continue;
+                    const v = window.parent.localStorage.getItem(k) || '';
+                    if (/expand|open/i.test(v) || v === 'true' || v === '"true"') return true;
+                }}
+            }} catch(e) {{}}
+            return false;
         }}
+        let done = false;
         function tryClose() {{
             if (done) return;
+            if (!isExpandedInStorage()) return;
             const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-            const sb  = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (!btn || !sb) return;
-            if (isSidebarOpen(sb)) {{
-                done = true;
-                btn.click();
-            }}
+            if (!btn) return;
+            done = true;
+            btn.click();
         }}
         setTimeout(tryClose, 300);
-        setTimeout(tryClose, 800);
-        setTimeout(tryClose, 1600);
-        setTimeout(tryClose, 3000);
+        setTimeout(tryClose, 1000);
     }})();
 
     // 모바일에서 사이드바 토글 버튼에 "정류장" 라벨 추가
