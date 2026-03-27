@@ -302,6 +302,8 @@ def inject_all_css(line_display, close_sidebar=False):
         /* 모바일: 사이드바 오버레이 (position:fixed) + 메인 폭 유지 → sticky 지도 작동 */
         section[data-testid="stSidebar"] {
             position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
         }
         [data-testid="stAppViewContainer"] > .main {
             margin-left: 0 !important;
@@ -321,18 +323,15 @@ def inject_all_css(line_display, close_sidebar=False):
             width: 100% !important;
             min-width: 100% !important;
         }
-        /* 지도 컬럼만 sticky — 최상위 stVerticalBlock의 두 번째 stHorizontalBlock 첫 stColumn */
-        /* > 조합자: 내부 중첩 stVerticalBlock(노선 버튼 등)은 제외 */
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:first-child,
-        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:first-child {
+        /* 지도 컬럼: 스크롤해도 상단 고정 */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
             position: sticky !important;
             top: 3.5rem !important;
             z-index: 10 !important;
             background: var(--background-color) !important;
         }
         /* 정보 패널 컬럼: 지도 뒤로 */
-        .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:last-child,
-        .block-container > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:not(:first-child) > [data-testid="stColumn"]:last-child {
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
             position: relative !important;
             z-index: 1 !important;
         }
