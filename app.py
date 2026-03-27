@@ -231,9 +231,8 @@ def inject_all_css(line_display, close_sidebar=False):
     /* 타이틀과 지도 사이 여백 최소화 */
     .block-container h2 { margin-top: 0 !important; margin-bottom: 2px !important; white-space: nowrap !important; overflow: hidden !important; }
     hr { margin: 6px 0 !important; }
-    /* 사이드바 — position:fixed로 메인 레이아웃 분리 (sticky 지도 작동 조건) */
+    /* 사이드바 공통 */
     section[data-testid="stSidebar"] {
-        position: fixed !important;
         z-index: 999 !important;
         height: 100dvh !important;
     }
@@ -300,7 +299,10 @@ def inject_all_css(line_display, close_sidebar=False):
     }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
-        /* 모바일: 사이드바 오버레이 */
+        /* 모바일: 사이드바 오버레이 (position:fixed) + 메인 폭 유지 → sticky 지도 작동 */
+        section[data-testid="stSidebar"] {
+            position: fixed !important;
+        }
         [data-testid="stAppViewContainer"] > .main {
             margin-left: 0 !important;
         }
