@@ -299,9 +299,13 @@ def inject_all_css(line_display, close_sidebar=False):
     }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
-        /* 모바일: 사이드바가 열려도 메인 영역 폭 변화 없음 (오버레이) */
+        /* 모바일: 사이드바 오버레이 + sticky 지도 정상 작동 위해 overflow 해제 */
         [data-testid="stAppViewContainer"] > .main {
             margin-left: 0 !important;
+            overflow: visible !important;
+        }
+        [data-testid="stAppViewContainer"] {
+            overflow: visible !important;
         }
         .block-container {
             padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
