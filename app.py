@@ -11,10 +11,10 @@ BUILD_TIME = datetime.datetime.fromtimestamp(os.path.getmtime(__file__), tz=_KST
 _COUNTER_NS = "yardbus-rogermostwanted"
 
 def _hit_counter(key: str) -> int:
-    """countapi.xyz 히트 → 카운트 반환. 실패 시 -1."""
+    """counterapi.dev 히트 → 카운트 반환. 실패 시 -1."""
     try:
-        r = requests.get(f"https://api.countapi.xyz/hit/{_COUNTER_NS}/{key}", timeout=3)
-        return r.json().get("value", -1) if r.ok else -1
+        r = requests.get(f"https://api.counterapi.dev/v1/{_COUNTER_NS}/{key}/up", timeout=3)
+        return r.json().get("count", -1) if r.ok else -1
     except Exception:
         return -1
 
