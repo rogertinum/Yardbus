@@ -8,6 +8,23 @@ from functools import lru_cache
 _KST = datetime.timezone(datetime.timedelta(hours=9))
 BUILD_TIME = datetime.datetime.fromtimestamp(os.path.getmtime(__file__), tz=_KST).strftime("%m/%d %H:%M")
 
+_COUNTER_NS = "yardbus-rogermostwanted"
+
+def _hit_counter(key: str) -> int:
+    """countapi.xyz 히트 → 카운트 반환. 실패 시 -1."""
+    try:
+        r = requests.get(f"https://api.countapi.xyz/hit/{_COUNTER_NS}/{key}", timeout=3)
+        return r.json().get("value", -1) if r.ok else -1
+    except Exception:
+        return -1
+
+def fetch_visitor_counts() -> tuple[int, int]:
+    """오늘(KST) + 총 방문자 카운트를 각 1씩 증가 후 반환."""
+    today_key = "today-" + datetime.datetime.now(tz=_KST).strftime("%Y-%m-%d")
+    today = _hit_counter(today_key)
+    total = _hit_counter("total")
+    return today, total
+
 st.set_page_config(page_title="야드 버스 시간표", page_icon="🚌", layout="wide",
                    initial_sidebar_state="collapsed")
 
@@ -219,7 +236,7 @@ def get_direction_parts(station_name: str, route_id: str, direction: str):
     return ordered[-1], (ordered[idx-1] if idx > 0 else None), (ordered[idx+1] if idx < n-1 else None)
 
 # ── CSS / JS 주입 ─────────────────────────────────────────────────────────────
-def inject_all_css(line_display, close_sidebar=False):
+def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_total=-1):
     st.markdown("""
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -389,8 +406,14 @@ def inject_all_css(line_display, close_sidebar=False):
         user-select: none !important;
     }
     </style>
-    <div class="ypf-footer">📧 rogermostwanted@gmail.com</div>
     """, unsafe_allow_html=True)
+
+    today_disp  = str(visitor_today)  if visitor_today  >= 0 else "--"
+    total_disp  = str(visitor_total)  if visitor_total  >= 0 else "--"
+    st.markdown(
+        f'<div class="ypf-footer">📧 rogermostwanted@gmail.com &nbsp;|&nbsp; Today {today_disp} &nbsp;Total {total_disp}</div>',
+        unsafe_allow_html=True,
+    )
 
     color_map = {
         line_display[k]: {"bg": v, "text": LINE_TEXT_COLOR.get(k, "white")}
@@ -892,7 +915,15 @@ def main():
             st.session_state["lang"] = new_lang
             st.rerun()
 
-    inject_all_css(line_display, close_sidebar=is_first_render)
+    # 방문자 카운트: 세션 최초 렌더 시 1회만 API 호출
+    if is_first_render:
+        vt, vn = fetch_visitor_counts()
+        st.session_state["_visitor_today"] = vt
+        st.session_state["_visitor_total"] = vn
+
+    inject_all_css(line_display, close_sidebar=is_first_render,
+                   visitor_today=st.session_state.get("_visitor_today", -1),
+                   visitor_total=st.session_state.get("_visitor_total", -1))
     render_sidebar(T, line_display, lang)
 
     col_map, col_info = st.columns([3, 1])
