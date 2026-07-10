@@ -66,6 +66,10 @@ TEXTS = {
         "refresh": "🔄 새로고침",
         "sidebar_hint": "노선을 선택하면 정류장 목록이 표시됩니다.",
         "route_stops": "{r} 정류장",
+        "remind_title": "도착 알림 설정",
+        "remind_3": "3분 전",
+        "remind_5": "5분 전",
+        "remind_cancel": "취소",
     },
     "en": {
         "title": "Yard Bus Timetable",
@@ -84,6 +88,10 @@ TEXTS = {
         "refresh": "🔄 Refresh",
         "sidebar_hint": "Select a route to see stops.",
         "route_stops": "{r} Stops",
+        "remind_title": "Set arrival reminder",
+        "remind_3": "3 min",
+        "remind_5": "5 min",
+        "remind_cancel": "Cancel",
     },
     "ja": {
         "title": "ヤードバス時刻表",
@@ -102,6 +110,10 @@ TEXTS = {
         "refresh": "🔄 更新",
         "sidebar_hint": "路線を選択すると停留所一覧が表示されます。",
         "route_stops": "{r} 停留所",
+        "remind_title": "到着通知を設定",
+        "remind_3": "3分前",
+        "remind_5": "5分前",
+        "remind_cancel": "キャンセル",
     },
 }
 
@@ -314,6 +326,69 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         padding: 0 !important;
         overflow: hidden !important;
     }
+    /* 야드 지도 확대/축소 래퍼 */
+    .ypf-map-wrap {
+        position: relative !important;
+        overflow: hidden !important;
+        border-radius: 6px;
+    }
+    .ypf-map-wrap [data-testid="stCustomComponentV1"] {
+        touch-action: none !important;
+        will-change: transform;
+    }
+    .ypf-zoom-ctrl {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: none;
+    }
+    .ypf-zoom-ctrl button {
+        pointer-events: auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(30, 41, 59, 0.72);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .ypf-zoom-ctrl button:active { background: rgba(30, 41, 59, 0.92); }
+    .ypf-zoom-ctrl button.ypf-zoom-reset { font-size: 12px; }
+    /* 종 알림 버튼 */
+    .ypf-bell-wrap { position: relative; display: inline-block; vertical-align: middle; margin-left: 6px; }
+    .ypf-bell-btn {
+        border: none; background: transparent; cursor: pointer;
+        font-size: 1.1em; line-height: 1; padding: 2px 4px;
+        filter: grayscale(1) opacity(0.55);
+        transition: filter 0.15s ease;
+    }
+    .ypf-bell-btn.ypf-bell-active { filter: none; opacity: 1; }
+    .ypf-bell-menu {
+        position: absolute; top: 130%; left: 50%; transform: translateX(-50%);
+        background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18); padding: 6px; z-index: 50;
+        display: none; white-space: nowrap;
+    }
+    .ypf-bell-menu.ypf-open { display: flex; gap: 4px; }
+    .ypf-bell-menu button {
+        border: 1px solid #d1d5db; background: #f3f4f6; color: #374151;
+        border-radius: 6px; padding: 5px 9px; font-size: 0.78em;
+        cursor: pointer; white-space: nowrap;
+    }
+    .ypf-bell-menu button.ypf-cancel { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+    @media (prefers-color-scheme: dark) {
+        .ypf-bell-menu { background: #1f2937; border-color: #374151; }
+        .ypf-bell-menu button { background: #374151; color: #e5e7eb; border-color: #4b5563; }
+        .ypf-bell-menu button.ypf-cancel { background: #4c1d1d; color: #fca5a5; border-color: #7f1d1d; }
+    }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
         /* 모바일: 사이드바 오버레이 (position:fixed) + 메인 폭 유지 → sticky 지도 작동 */
@@ -377,6 +452,16 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         /* 정보패널 버튼 — 터치 타겟 확보 */
         [data-testid="stButton"] button {
             min-height: 48px !important;
+        }
+        /* 종 알림 버튼 — 모바일 터치 타겟 확보 */
+        .ypf-bell-btn {
+            min-width: 44px !important;
+            min-height: 40px !important;
+            font-size: 1.4em !important;
+        }
+        .ypf-bell-menu button {
+            padding: 10px 14px !important;
+            font-size: 0.9em !important;
         }
         /* 헤더 행 언어선택 컬럼: 타이틀보다 위에 표시 */
         .block-container > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:first-child > [data-testid="stColumn"]:last-child,
@@ -604,6 +689,303 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         }});
     }}
 
+    // ── 야드 지도 확대/축소 ──────────────────────────────────────────────────
+    function getMapBlock() {{
+        const marker = window.parent.document.getElementById('ypf-map-marker');
+        return marker ? marker.closest('[data-testid="stVerticalBlock"]') : null;
+    }}
+    function getMapComp() {{
+        const block = getMapBlock();
+        return block ? block.querySelector('[data-testid="stCustomComponentV1"]') : null;
+    }}
+
+    function setupMapZoom() {{
+        const block = getMapBlock();
+        if (!block || block.dataset.ypfZoomSetup) return;
+        block.dataset.ypfZoomSetup = '1';
+        block.classList.add('ypf-map-wrap');
+
+        const ctrl = window.parent.document.createElement('div');
+        ctrl.className = 'ypf-zoom-ctrl';
+        ctrl.innerHTML =
+            '<button type="button" title="확대">+</button>' +
+            '<button type="button" title="축소">−</button>' +
+            '<button type="button" class="ypf-zoom-reset" title="원래 크기">1:1</button>';
+        const [inBtn, outBtn, resetBtn] = ctrl.querySelectorAll('button');
+        inBtn.onclick    = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomIn(); }};
+        outBtn.onclick   = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomOut(); }};
+        resetBtn.onclick = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomReset(); }};
+        block.appendChild(ctrl);
+    }}
+
+    // 참고: 이 <script>는 Streamlit이 rerun될 때마다 새 iframe에서 통째로 다시 실행된다.
+    // 상태(state)는 window.parent에 영속시키되, addEventListener 리스너는 매번 새로
+    // (현재 살아있는 realm으로) 다시 등록해야 한다 — 이전 iframe이 destroy되면 그 realm에서
+    // 등록한 리스너는 document에는 남아있지만 더 이상 호출되지 않는 현상이 있었음.
+    {{
+        window.parent.__ypfZoomState = window.parent.__ypfZoomState || {{ scale: 1, tx: 0, ty: 0 }};
+        const state = window.parent.__ypfZoomState;
+
+        function clamp(v, lo, hi) {{ return Math.max(lo, Math.min(hi, v)); }}
+
+        function applyTransform() {{
+            const comp = getMapComp();
+            if (!comp) return;
+            const next = `translate(${{state.tx}}px, ${{state.ty}}px) scale(${{state.scale}})`;
+            // 동일 값이면 스타일을 다시 쓰지 않음 — MutationObserver 재귀 트리거 방지
+            if (comp.dataset.ypfTransform === next) return;
+            comp.dataset.ypfTransform = next;
+            comp.style.transformOrigin = '0 0';
+            comp.style.transform = next;
+        }}
+
+        function clampPan(wrap) {{
+            const r = wrap.getBoundingClientRect();
+            const minX = -(r.width  * (state.scale - 1));
+            const minY = -(r.height * (state.scale - 1));
+            state.tx = clamp(state.tx, minX, 0);
+            state.ty = clamp(state.ty, minY, 0);
+        }}
+
+        function setScale(newScale, cx, cy, wrap) {{
+            const old = state.scale;
+            newScale = clamp(newScale, 1, 3.5);
+            if (Math.abs(newScale - old) < 0.001) return;
+            const ratio = newScale / old;
+            state.tx = cx - (cx - state.tx) * ratio;
+            state.ty = cy - (cy - state.ty) * ratio;
+            state.scale = newScale;
+            clampPan(wrap);
+            applyTransform();
+        }}
+
+        function resetZoom() {{
+            state.scale = 1; state.tx = 0; state.ty = 0;
+            applyTransform();
+        }}
+
+        window.parent.__ypfZoomIn = function() {{
+            const wrap = getMapBlock();
+            if (!wrap) return;
+            const r = wrap.getBoundingClientRect();
+            setScale(state.scale * 1.5, r.width / 2, r.height / 2, wrap);
+        }};
+        window.parent.__ypfZoomOut = function() {{
+            const wrap = getMapBlock();
+            if (!wrap) return;
+            const r = wrap.getBoundingClientRect();
+            setScale(state.scale / 1.5, r.width / 2, r.height / 2, wrap);
+        }};
+        window.parent.__ypfZoomReset = resetZoom;
+        window.parent.__ypfReapplyZoom = applyTransform;
+
+        const pointers = new Map();
+        let lastDist = null, dragging = false, dragStart = null, lastTap = 0;
+
+        function onWheel(e) {{
+            const wrap = getMapBlock();
+            if (!wrap || !wrap.contains(e.target)) return;
+            e.preventDefault();
+            const r = wrap.getBoundingClientRect();
+            const cx = e.clientX - r.left, cy = e.clientY - r.top;
+            const factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+            setScale(state.scale * factor, cx, cy, wrap);
+        }}
+        function onPointerDown(e) {{
+            const wrap = getMapBlock();
+            if (!wrap || !wrap.contains(e.target)) return;
+            pointers.set(e.pointerId, {{x: e.clientX, y: e.clientY}});
+            if (pointers.size === 1 && state.scale > 1.02) {{
+                dragging = true;
+                dragStart = {{x: e.clientX, y: e.clientY, tx: state.tx, ty: state.ty}};
+            }}
+        }}
+        function onPointerMove(e) {{
+            if (!pointers.has(e.pointerId)) return;
+            pointers.set(e.pointerId, {{x: e.clientX, y: e.clientY}});
+            const wrap = getMapBlock();
+            if (!wrap) return;
+            if (pointers.size === 2) {{
+                const pts = [...pointers.values()];
+                const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+                if (lastDist != null) {{
+                    const r = wrap.getBoundingClientRect();
+                    const cx = (pts[0].x + pts[1].x) / 2 - r.left;
+                    const cy = (pts[0].y + pts[1].y) / 2 - r.top;
+                    setScale(state.scale * (dist / lastDist), cx, cy, wrap);
+                }}
+                lastDist = dist;
+                dragging = false;
+            }} else if (dragging && pointers.size === 1) {{
+                const p = [...pointers.values()][0];
+                state.tx = dragStart.tx + (p.x - dragStart.x);
+                state.ty = dragStart.ty + (p.y - dragStart.y);
+                clampPan(wrap);
+                applyTransform();
+            }}
+        }}
+        function endPointer(e) {{
+            pointers.delete(e.pointerId);
+            if (pointers.size < 2) lastDist = null;
+            if (pointers.size === 0) dragging = false;
+        }}
+        function onPointerUp(e) {{
+            const wrap = getMapBlock();
+            if (wrap && wrap.contains(e.target) && pointers.size <= 1) {{
+                const now = Date.now();
+                if (now - lastTap < 300) {{
+                    const r = wrap.getBoundingClientRect();
+                    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+                    if (state.scale > 1.05) resetZoom(); else setScale(2.2, cx, cy, wrap);
+                    lastTap = 0;
+                }} else {{
+                    lastTap = now;
+                }}
+            }}
+            endPointer(e);
+        }}
+
+        // 이전(파괴된) iframe realm에서 등록된 리스너는 document에는 남지만 더 이상
+        // 호출되지 않으므로, 매 rerun마다 정리 후 현재 realm 기준으로 재등록한다.
+        const old = window.parent.__ypfZoomListeners;
+        if (old) {{
+            window.parent.document.removeEventListener('wheel', old.wheel);
+            window.parent.document.removeEventListener('pointerdown', old.pointerdown);
+            window.parent.document.removeEventListener('pointermove', old.pointermove);
+            window.parent.document.removeEventListener('pointerup', old.pointerup);
+            window.parent.document.removeEventListener('pointercancel', old.pointercancel);
+        }}
+        window.parent.document.addEventListener('wheel', onWheel, {{ passive: false }});
+        window.parent.document.addEventListener('pointerdown', onPointerDown);
+        window.parent.document.addEventListener('pointermove', onPointerMove);
+        window.parent.document.addEventListener('pointerup', onPointerUp);
+        window.parent.document.addEventListener('pointercancel', endPointer);
+        window.parent.__ypfZoomListeners = {{
+            wheel: onWheel, pointerdown: onPointerDown, pointermove: onPointerMove,
+            pointerup: onPointerUp, pointercancel: endPointer,
+        }};
+    }}
+
+    // ── 종 알림 버튼 ─────────────────────────────────────────────────────────
+    {{
+        function closeAllMenus(except) {{
+            window.parent.document.querySelectorAll('.ypf-bell-menu').forEach(m => {{
+                if (m !== except) m.classList.remove('ypf-open');
+            }});
+        }}
+
+        window.parent.__ypfBellToggle = function(btn) {{
+            const menu = btn.nextElementSibling;
+            if (!menu) return;
+            const willOpen = !menu.classList.contains('ypf-open');
+            closeAllMenus(willOpen ? menu : null);
+            menu.classList.toggle('ypf-open', willOpen);
+        }};
+
+        window.parent.__ypfBellSet = function(btn, hhmm, minutes, label) {{
+            const wrap = btn.closest('.ypf-bell-wrap');
+            const bellBtn = wrap ? wrap.querySelector('.ypf-bell-btn') : null;
+            const menu = wrap ? wrap.querySelector('.ypf-bell-menu') : null;
+
+            function schedule() {{
+                const now = new Date();
+                const kstNow = new Date(now.getTime() + (9 * 60 - now.getTimezoneOffset()) * 60000);
+                const h = parseInt(hhmm.slice(0, 2), 10), m = parseInt(hhmm.slice(2, 4), 10);
+                const target = new Date(kstNow);
+                target.setHours(h, m, 0, 0);
+                const fireAt = new Date(target.getTime() - minutes * 60000);
+                const delay = fireAt.getTime() - kstNow.getTime();
+                if (delay <= 0) {{
+                    window.parent.alert('이미 ' + minutes + '분 전이 지났어요. 다음 버스로 다시 설정해주세요.');
+                    return;
+                }}
+                if (window.parent.__ypfReminderTimer) {{
+                    window.parent.clearTimeout(window.parent.__ypfReminderTimer);
+                }}
+                window.parent.__ypfReminderInfo = {{ hhmm, minutes, label }};
+                window.parent.__ypfReminderTimer = window.parent.setTimeout(function() {{
+                    try {{
+                        new window.parent.Notification('🚌 버스 도착 ' + minutes + '분 전', {{
+                            body: label + ' · ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) + ' 도착 예정',
+                        }});
+                    }} catch (err) {{}}
+                    window.parent.__ypfReminderInfo = null;
+                    window.parent.__ypfReminderTimer = null;
+                    window.parent.document.querySelectorAll('.ypf-bell-btn').forEach(b => {{
+                        b.classList.remove('ypf-bell-active');
+                    }});
+                }}, delay);
+                if (bellBtn) bellBtn.classList.add('ypf-bell-active');
+                if (menu) menu.classList.remove('ypf-open');
+            }}
+
+            if (window.parent.Notification.permission === 'granted') {{
+                schedule();
+            }} else if (window.parent.Notification.permission !== 'denied') {{
+                window.parent.Notification.requestPermission().then(function(perm) {{
+                    if (perm === 'granted') schedule();
+                    else window.parent.alert('알림 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+                }});
+            }} else {{
+                window.parent.alert('알림이 차단되어 있어요. 브라우저 사이트 설정에서 알림을 허용해주세요.');
+            }}
+        }};
+
+        window.parent.__ypfBellCancel = function(btn) {{
+            const wrap = btn.closest('.ypf-bell-wrap');
+            const bellBtn = wrap ? wrap.querySelector('.ypf-bell-btn') : null;
+            const menu = wrap ? wrap.querySelector('.ypf-bell-menu') : null;
+            if (window.parent.__ypfReminderTimer) {{
+                window.parent.clearTimeout(window.parent.__ypfReminderTimer);
+            }}
+            window.parent.__ypfReminderTimer = null;
+            window.parent.__ypfReminderInfo = null;
+            if (bellBtn) bellBtn.classList.remove('ypf-bell-active');
+            if (menu) menu.classList.remove('ypf-open');
+        }};
+
+        // st.markdown 콘텐츠는 onclick 속성이 제거되므로 이벤트 위임으로 처리.
+        // 이 리스너도 rerun마다 살아있는 realm 기준으로 재등록해야 한다 (지도 확대 리스너와 동일 사유).
+        function onDocClick(e) {{
+            const bellBtn = e.target.closest('.ypf-bell-btn');
+            if (bellBtn) {{
+                e.stopPropagation();
+                window.parent.__ypfBellToggle(bellBtn);
+                return;
+            }}
+            const setBtn = e.target.closest('.ypf-bell-menu button[data-remind-minutes]');
+            if (setBtn) {{
+                e.stopPropagation();
+                window.parent.__ypfBellSet(
+                    setBtn, setBtn.dataset.hhmm,
+                    parseInt(setBtn.dataset.remindMinutes, 10),
+                    setBtn.dataset.label || ''
+                );
+                return;
+            }}
+            const cancelBtn = e.target.closest('.ypf-bell-menu button[data-remind-cancel]');
+            if (cancelBtn) {{
+                e.stopPropagation();
+                window.parent.__ypfBellCancel(cancelBtn);
+                return;
+            }}
+            if (e.target.closest('.ypf-bell-wrap')) return;
+            closeAllMenus(null);
+        }}
+        if (window.parent.__ypfBellClickHandler) {{
+            window.parent.document.removeEventListener('click', window.parent.__ypfBellClickHandler);
+        }}
+        window.parent.document.addEventListener('click', onDocClick);
+        window.parent.__ypfBellClickHandler = onDocClick;
+    }}
+
+    function syncBellState() {{
+        const active = !!window.parent.__ypfReminderInfo;
+        window.parent.document.querySelectorAll('.ypf-bell-btn').forEach(btn => {{
+            btn.classList.toggle('ypf-bell-active', active);
+        }});
+    }}
+
     // viewport-fit=cover: safe area inset 사용 가능하게
     (function() {{
         const m = window.parent.document.querySelector('meta[name="viewport"]');
@@ -657,8 +1039,14 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         btn.appendChild(lbl);
     }})();
 
-    applyStyles();
-    new MutationObserver(() => {{ applyStyles(); }})
+    function tick() {{
+        applyStyles();
+        setupMapZoom();
+        if (window.parent.__ypfReapplyZoom) window.parent.__ypfReapplyZoom();
+        syncBellState();
+    }}
+    tick();
+    new MutationObserver(() => {{ tick(); }})
         .observe(window.parent.document.body, {{childList: true, subtree: true}});
     </script>
     """, height=0)
@@ -706,7 +1094,7 @@ def fetch_timetable(station_code: str, direction: str, line: str) -> list:
     return []
 
 # ── 다음 버스 표시 ─────────────────────────────────────────────────────────────
-def render_next_buses(times: list, line_color: str, T: dict) -> str:
+def render_next_buses(times: list, line_color: str, T: dict, remind_label: str = "") -> str:
     def fmt(raw): return raw[:2] + ":" + raw[2:]
     upcoming = [t for t in times if t["TIME_PASS_YN"] == "N"]
     if not times:
@@ -714,13 +1102,26 @@ def render_next_buses(times: list, line_color: str, T: dict) -> str:
     if not upcoming:
         return f"<div style='color:#aaa;padding:8px;text-align:center'>{T['no_service']}</div>"
     is_last = len(upcoming) == 1
+    hhmm = upcoming[0]["TIME"]
+    # st.markdown(unsafe_allow_html=True)는 onclick 등 인라인 이벤트 핸들러를 스트립하므로
+    # data-* 속성만 심고 실제 이벤트 바인딩은 components.html 스크립트의 이벤트 위임으로 처리
+    safe_label = remind_label.replace("\\", "").replace("'", "").replace('"', "")
+    bell_html = (
+        f"<span class='ypf-bell-wrap'>"
+        f"<button type='button' class='ypf-bell-btn' title='{T['remind_title']}'>🔔</button>"
+        f"<div class='ypf-bell-menu'>"
+        f"<button type='button' data-remind-minutes='3' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_3']}</button>"
+        f"<button type='button' data-remind-minutes='5' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_5']}</button>"
+        f"<button type='button' class='ypf-cancel' data-remind-cancel='1'>{T['remind_cancel']}</button>"
+        f"</div></span>"
+    )
     html = (
         f"<div style='background:{line_color}18;border-left:4px solid {line_color};"
         f"padding:12px 16px;border-radius:6px;margin-bottom:4px;text-align:center'>"
         f"{T['next_bus']}"
         f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">' + T['last_bus'] + '</span>' if is_last else ''}<br>"
         f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>"
-        f"{fmt(upcoming[0]['TIME'])}</span></div>"
+        f"{fmt(hhmm)}</span>{bell_html}</div>"
     )
     if not is_last:
         for label, idx in [(T["next2"], 1), (T["next3"], 2)]:
@@ -929,6 +1330,7 @@ def main():
     col_map, col_info = st.columns([3, 1])
 
     with col_map:
+        st.markdown('<div id="ypf-map-marker" style="display:none"></div>', unsafe_allow_html=True)
         img = draw_map(selected_station=st.session_state["selected"])
         coords = streamlit_image_coordinates(
             img, key="yard_map",
@@ -1055,7 +1457,8 @@ def main():
             line_color = LINE_COLORS.get(active_line, "#888")
             with st.spinner(T["spinner_timetable"]):
                 times = fetch_timetable(code, active_dir, active_line)
-            st.markdown(render_next_buses(times, line_color, T), unsafe_allow_html=True)
+            remind_label = f"{stn(sel, lang)} · {line_display.get(active_line, active_line)}"
+            st.markdown(render_next_buses(times, line_color, T, remind_label), unsafe_allow_html=True)
             with st.expander(T["full_timetable"]):
                 render_full_timetable(times, line_color, T)
 
