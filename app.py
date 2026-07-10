@@ -936,7 +936,12 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
                 const kstNow = new Date(now.getTime() + 9 * 3600000 + now.getTimezoneOffset() * 60000);
                 const h = parseInt(hhmm.slice(0, 2), 10), m = parseInt(hhmm.slice(2, 4), 10);
                 const target = new Date(kstNow);
+                // setHours(h, m, ...)는 m이 60 이상이어도(드물게 API가 그런 값을 줌) 다음 시로
+                // 자동 올림 처리해준다 — 화면 표시도 원본 hhmm을 그대로 자르지 않고 이 정규화된
+                // target에서 다시 읽어야 '18:88' 같은 값이 안 나온다.
                 target.setHours(h, m, 0, 0);
+                const dispHH = String(target.getHours()).padStart(2, '0');
+                const dispMM = String(target.getMinutes()).padStart(2, '0');
                 const fireAt = new Date(target.getTime() - minutes * 60000);
                 const delay = fireAt.getTime() - kstNow.getTime();
                 if (delay <= 0) {{
@@ -949,7 +954,7 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
                 window.parent.__ypfReminderInfo = {{ hhmm, minutes, label }};
                 window.parent.__ypfReminderTimer = window.parent.setTimeout(function() {{
                     const title = '🚌 버스 도착 ' + minutes + '분 전';
-                    const body = label + ' · ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) + ' 도착 예정';
+                    const body = label + ' · ' + dispHH + ':' + dispMM + ' 도착 예정';
                     if (hasNotif && window.parent.Notification.permission === 'granted') {{
                         try {{ new window.parent.Notification(title, {{ body: body }}); }} catch (err) {{}}
                     }}
@@ -1143,9 +1148,23 @@ def fetch_timetable(station_code: str, direction: str, line: str) -> list:
         pass
     return []
 
+# ── 시간 포맷 ──────────────────────────────────────────────────────────────────
+def fmt_time(raw: str) -> str:
+    """API가 주는 HHMM 문자열을 HH:MM으로 변환.
+    드물게 분(MM)이 60 이상인 비정상 값(예: '1888' → 분이 88)이 내려오는 경우가 있어
+    그대로 자르면 '18:88' 같은 말이 안 되는 시각이 나온다. 초과분을 시(H)로 올림 처리한다."""
+    try:
+        h, m = int(raw[:2]), int(raw[2:4])
+    except (ValueError, TypeError, IndexError):
+        return raw
+    h += m // 60
+    m %= 60
+    h %= 24
+    return f"{h:02d}:{m:02d}"
+
 # ── 다음 버스 표시 ─────────────────────────────────────────────────────────────
 def render_next_buses(times: list, line_color: str, T: dict, remind_label: str = "") -> str:
-    def fmt(raw): return raw[:2] + ":" + raw[2:]
+    fmt = fmt_time
     upcoming = [t for t in times if t["TIME_PASS_YN"] == "N"]
     if not times:
         return f"<div style='color:#aaa;padding:8px;text-align:center'>{T['no_timetable']}</div>"
@@ -1191,7 +1210,7 @@ def render_next_buses(times: list, line_color: str, T: dict, remind_label: str =
 
 # ── 전체 시간표 표시 ───────────────────────────────────────────────────────────
 def render_full_timetable(times: list, line_color: str, T: dict) -> None:
-    def fmt(raw): return raw[:2] + ":" + raw[2:]
+    fmt = fmt_time
     if not times:
         st.caption(T["no_timetable"])
         return
