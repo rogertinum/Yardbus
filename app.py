@@ -336,6 +336,15 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         touch-action: none !important;
         will-change: transform;
     }
+    /* 지도 iframe 위를 덮는 투명 오버레이 — 핀치/드래그/휠 제스처를 여기서 가로챈다 */
+    .ypf-map-touch {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        background: transparent;
+        touch-action: none;
+        cursor: grab;
+    }
     .ypf-zoom-ctrl {
         position: absolute;
         right: 8px;
@@ -362,15 +371,22 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
     }
     .ypf-zoom-ctrl button:active { background: rgba(30, 41, 59, 0.92); }
     .ypf-zoom-ctrl button.ypf-zoom-reset { font-size: 12px; }
-    /* 종 알림 버튼 */
-    .ypf-bell-wrap { position: relative; display: inline-block; vertical-align: middle; margin-left: 6px; }
+    /* 종 알림 버튼 — 시간 표시 옆에 절대 위치로 붙여서 시간 자체의 가운데 정렬에 영향 없게 함 */
+    .ypf-bell-anchor { position: relative; display: inline-block; }
+    .ypf-bell-wrap {
+        position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+        margin-left: 8px; display: inline-block;
+    }
     .ypf-bell-btn {
         border: none; background: transparent; cursor: pointer;
-        font-size: 1.1em; line-height: 1; padding: 2px 4px;
-        filter: grayscale(1) opacity(0.55);
-        transition: filter 0.15s ease;
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 4px; border-radius: 50%;
+        color: #9ca3af;
+        transition: color 0.15s ease, background-color 0.15s ease;
     }
-    .ypf-bell-btn.ypf-bell-active { filter: none; opacity: 1; }
+    .ypf-bell-btn:hover { background: rgba(148, 163, 184, 0.18); }
+    .ypf-bell-btn svg { width: 17px; height: 17px; display: block; }
+    .ypf-bell-btn.ypf-bell-active { color: #f59e0b; }
     .ypf-bell-menu {
         position: absolute; top: 130%; left: 50%; transform: translateX(-50%);
         background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
@@ -388,6 +404,19 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         .ypf-bell-menu { background: #1f2937; border-color: #374151; }
         .ypf-bell-menu button { background: #374151; color: #e5e7eb; border-color: #4b5563; }
         .ypf-bell-menu button.ypf-cancel { background: #4c1d1d; color: #fca5a5; border-color: #7f1d1d; }
+    }
+    /* 도착 알림 인앱 토스트 */
+    .ypf-toast {
+        position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+        background: #1f2937; color: #fff; padding: 12px 18px; border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 9999;
+        font-size: 0.92em; text-align: center; max-width: 90vw;
+        animation: ypf-toast-in 0.25s ease-out;
+    }
+    .ypf-toast.ypf-toast-out { opacity: 0; transform: translateX(-50%) translateY(8px); transition: all 0.4s ease; }
+    @keyframes ypf-toast-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
     /* ── 모바일 반응형 (768px 이하) ───────────────────────────────────────── */
     @media (max-width: 768px) {
@@ -457,7 +486,10 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         .ypf-bell-btn {
             min-width: 44px !important;
             min-height: 40px !important;
-            font-size: 1.4em !important;
+        }
+        .ypf-bell-btn svg {
+            width: 22px !important;
+            height: 22px !important;
         }
         .ypf-bell-menu button {
             padding: 10px 14px !important;
@@ -701,21 +733,31 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
 
     function setupMapZoom() {{
         const block = getMapBlock();
-        if (!block || block.dataset.ypfZoomSetup) return;
-        block.dataset.ypfZoomSetup = '1';
-        block.classList.add('ypf-map-wrap');
+        if (!block) return;
+        let overlay = block.querySelector('.ypf-map-touch');
+        if (!block.dataset.ypfZoomSetup) {{
+            block.dataset.ypfZoomSetup = '1';
+            block.classList.add('ypf-map-wrap');
 
-        const ctrl = window.parent.document.createElement('div');
-        ctrl.className = 'ypf-zoom-ctrl';
-        ctrl.innerHTML =
-            '<button type="button" title="확대">+</button>' +
-            '<button type="button" title="축소">−</button>' +
-            '<button type="button" class="ypf-zoom-reset" title="원래 크기">1:1</button>';
-        const [inBtn, outBtn, resetBtn] = ctrl.querySelectorAll('button');
-        inBtn.onclick    = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomIn(); }};
-        outBtn.onclick   = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomOut(); }};
-        resetBtn.onclick = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomReset(); }};
-        block.appendChild(ctrl);
+            // 지도(iframe) 위를 덮는 투명 오버레이 — 터치/휠 제스처는 iframe 내부 문서로
+            // 들어가버려 부모 document 리스너로는 잡히지 않으므로, 오버레이가 먼저 가로챈다.
+            overlay = window.parent.document.createElement('div');
+            overlay.className = 'ypf-map-touch';
+            block.appendChild(overlay);
+
+            const ctrl = window.parent.document.createElement('div');
+            ctrl.className = 'ypf-zoom-ctrl';
+            ctrl.innerHTML =
+                '<button type="button" title="확대">+</button>' +
+                '<button type="button" title="축소">−</button>' +
+                '<button type="button" class="ypf-zoom-reset" title="원래 크기">1:1</button>';
+            const [inBtn, outBtn, resetBtn] = ctrl.querySelectorAll('button');
+            inBtn.onclick    = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomIn(); }};
+            outBtn.onclick   = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomOut(); }};
+            resetBtn.onclick = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomReset(); }};
+            block.appendChild(ctrl);
+        }}
+        if (overlay && window.parent.__ypfBindMapOverlay) window.parent.__ypfBindMapOverlay(overlay);
     }}
 
     // 참고: 이 <script>는 Streamlit이 rerun될 때마다 새 iframe에서 통째로 다시 실행된다.
@@ -739,15 +781,32 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             comp.style.transform = next;
         }}
 
-        function clampPan(wrap) {{
-            const r = wrap.getBoundingClientRect();
-            const minX = -(r.width  * (state.scale - 1));
-            const minY = -(r.height * (state.scale - 1));
+        // 지도 iframe의 "변형되지 않은(static)" 기준 좌표계.
+        // comp.getBoundingClientRect()는 현재 적용된 transform(translate+scale) 반영값이므로
+        // 우리가 직접 걸어둔 state.tx/ty/scale로 역산하면 스크롤/레이아웃과 무관하게 항상
+        // 정확한 정적 기준점을 구할 수 있다 (offsetLeft/Top은 컨테이너 구조에 따라 신뢰할 수 없었음).
+        function getStaticFrame() {{
+            const comp = getMapComp();
+            if (!comp) return null;
+            const cur = comp.getBoundingClientRect();
+            if (cur.width === 0 || cur.height === 0) return null;
+            return {{
+                left: cur.left - state.tx,
+                top: cur.top - state.ty,
+                width: cur.width / state.scale,
+                height: cur.height / state.scale,
+            }};
+        }}
+
+        function clampPan(frame) {{
+            const minX = -(frame.width  * (state.scale - 1));
+            const minY = -(frame.height * (state.scale - 1));
             state.tx = clamp(state.tx, minX, 0);
             state.ty = clamp(state.ty, minY, 0);
         }}
 
-        function setScale(newScale, cx, cy, wrap) {{
+        // cx, cy: getStaticFrame() 기준 상대 좌표(비확대 상태 기준)
+        function setScale(newScale, cx, cy, frame) {{
             const old = state.scale;
             newScale = clamp(newScale, 1, 3.5);
             if (Math.abs(newScale - old) < 0.001) return;
@@ -755,7 +814,7 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             state.tx = cx - (cx - state.tx) * ratio;
             state.ty = cy - (cy - state.ty) * ratio;
             state.scale = newScale;
-            clampPan(wrap);
+            clampPan(frame);
             applyTransform();
         }}
 
@@ -765,104 +824,122 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         }}
 
         window.parent.__ypfZoomIn = function() {{
-            const wrap = getMapBlock();
-            if (!wrap) return;
-            const r = wrap.getBoundingClientRect();
-            setScale(state.scale * 1.5, r.width / 2, r.height / 2, wrap);
+            const frame = getStaticFrame();
+            if (!frame) return;
+            setScale(state.scale * 1.5, frame.width / 2, frame.height / 2, frame);
         }};
         window.parent.__ypfZoomOut = function() {{
-            const wrap = getMapBlock();
-            if (!wrap) return;
-            const r = wrap.getBoundingClientRect();
-            setScale(state.scale / 1.5, r.width / 2, r.height / 2, wrap);
+            const frame = getStaticFrame();
+            if (!frame) return;
+            setScale(state.scale / 1.5, frame.width / 2, frame.height / 2, frame);
         }};
         window.parent.__ypfZoomReset = resetZoom;
         window.parent.__ypfReapplyZoom = applyTransform;
 
+        // 정류장 탭(클릭) 전달: 오버레이가 제스처를 가로채면 iframe 내부의
+        // streamlit_image_coordinates는 클릭을 못 받으므로, 단순 탭으로 판정되면
+        // 현재 확대/이동 상태 역산으로 iframe 내부 이미지 좌표를 계산해 클릭을 대신 쏴준다.
+        function forwardTap(clientX, clientY) {{
+            const comp = getMapComp();
+            const frame = getStaticFrame();
+            if (!comp || !frame) return;
+            let doc;
+            try {{ doc = comp.contentDocument; }} catch (err) {{ return; }}
+            if (!doc) return;
+            const img = doc.querySelector('img');
+            if (!img) return;
+            const localX = (clientX - frame.left - state.tx) / state.scale;
+            const localY = (clientY - frame.top - state.ty) / state.scale;
+            const r = img.getBoundingClientRect();
+            const cx = r.left + localX, cy = r.top + localY;
+            const ev = new MouseEvent('click', {{
+                bubbles: true, cancelable: true, clientX: cx, clientY: cy, view: doc.defaultView,
+            }});
+            img.dispatchEvent(ev);
+        }}
+
         const pointers = new Map();
-        let lastDist = null, dragging = false, dragStart = null, lastTap = 0;
+        let lastDist = null, dragStart = null, downPos = null, moved = false;
 
         function onWheel(e) {{
-            const wrap = getMapBlock();
-            if (!wrap || !wrap.contains(e.target)) return;
             e.preventDefault();
-            const r = wrap.getBoundingClientRect();
-            const cx = e.clientX - r.left, cy = e.clientY - r.top;
+            const frame = getStaticFrame();
+            if (!frame) return;
+            const cx = e.clientX - frame.left, cy = e.clientY - frame.top;
             const factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
-            setScale(state.scale * factor, cx, cy, wrap);
+            setScale(state.scale * factor, cx, cy, frame);
         }}
         function onPointerDown(e) {{
-            const wrap = getMapBlock();
-            if (!wrap || !wrap.contains(e.target)) return;
             pointers.set(e.pointerId, {{x: e.clientX, y: e.clientY}});
-            if (pointers.size === 1 && state.scale > 1.02) {{
-                dragging = true;
+            if (pointers.size === 1) {{
+                downPos = {{x: e.clientX, y: e.clientY}};
+                moved = false;
                 dragStart = {{x: e.clientX, y: e.clientY, tx: state.tx, ty: state.ty}};
+            }} else {{
+                moved = true;  // 두 번째 손가락이 닿으면 핀치 — 탭 아님
             }}
         }}
         function onPointerMove(e) {{
             if (!pointers.has(e.pointerId)) return;
             pointers.set(e.pointerId, {{x: e.clientX, y: e.clientY}});
-            const wrap = getMapBlock();
-            if (!wrap) return;
+            const frame = getStaticFrame();
+            if (!frame) return;
             if (pointers.size === 2) {{
                 const pts = [...pointers.values()];
                 const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
                 if (lastDist != null) {{
-                    const r = wrap.getBoundingClientRect();
-                    const cx = (pts[0].x + pts[1].x) / 2 - r.left;
-                    const cy = (pts[0].y + pts[1].y) / 2 - r.top;
-                    setScale(state.scale * (dist / lastDist), cx, cy, wrap);
+                    const cx = (pts[0].x + pts[1].x) / 2 - frame.left;
+                    const cy = (pts[0].y + pts[1].y) / 2 - frame.top;
+                    setScale(state.scale * (dist / lastDist), cx, cy, frame);
                 }}
                 lastDist = dist;
-                dragging = false;
-            }} else if (dragging && pointers.size === 1) {{
+            }} else if (pointers.size === 1 && dragStart) {{
                 const p = [...pointers.values()][0];
-                state.tx = dragStart.tx + (p.x - dragStart.x);
-                state.ty = dragStart.ty + (p.y - dragStart.y);
-                clampPan(wrap);
-                applyTransform();
+                if (!moved && Math.hypot(p.x - downPos.x, p.y - downPos.y) > 8) moved = true;
+                if (moved && state.scale > 1.02) {{
+                    state.tx = dragStart.tx + (p.x - dragStart.x);
+                    state.ty = dragStart.ty + (p.y - dragStart.y);
+                    clampPan(frame);
+                    applyTransform();
+                }}
             }}
         }}
         function endPointer(e) {{
             pointers.delete(e.pointerId);
             if (pointers.size < 2) lastDist = null;
-            if (pointers.size === 0) dragging = false;
+            if (pointers.size === 0) dragStart = null;
         }}
         function onPointerUp(e) {{
-            const wrap = getMapBlock();
-            if (wrap && wrap.contains(e.target) && pointers.size <= 1) {{
-                const now = Date.now();
-                if (now - lastTap < 300) {{
-                    const r = wrap.getBoundingClientRect();
-                    const cx = e.clientX - r.left, cy = e.clientY - r.top;
-                    if (state.scale > 1.05) resetZoom(); else setScale(2.2, cx, cy, wrap);
-                    lastTap = 0;
-                }} else {{
-                    lastTap = now;
-                }}
-            }}
+            const wasSingleTap = pointers.size <= 1 && !moved;
+            if (wasSingleTap) forwardTap(e.clientX, e.clientY);
             endPointer(e);
+            if (pointers.size === 0) {{ downPos = null; moved = false; }}
         }}
 
-        // 이전(파괴된) iframe realm에서 등록된 리스너는 document에는 남지만 더 이상
-        // 호출되지 않으므로, 매 rerun마다 정리 후 현재 realm 기준으로 재등록한다.
-        const old = window.parent.__ypfZoomListeners;
-        if (old) {{
-            window.parent.document.removeEventListener('wheel', old.wheel);
-            window.parent.document.removeEventListener('pointerdown', old.pointerdown);
-            window.parent.document.removeEventListener('pointermove', old.pointermove);
-            window.parent.document.removeEventListener('pointerup', old.pointerup);
-            window.parent.document.removeEventListener('pointercancel', old.pointercancel);
-        }}
-        window.parent.document.addEventListener('wheel', onWheel, {{ passive: false }});
-        window.parent.document.addEventListener('pointerdown', onPointerDown);
-        window.parent.document.addEventListener('pointermove', onPointerMove);
-        window.parent.document.addEventListener('pointerup', onPointerUp);
-        window.parent.document.addEventListener('pointercancel', endPointer);
-        window.parent.__ypfZoomListeners = {{
-            wheel: onWheel, pointerdown: onPointerDown, pointermove: onPointerMove,
-            pointerup: onPointerUp, pointercancel: endPointer,
+        // 오버레이 엘리먼트는 그대로 두되, 리스너는 이 스크립트 실행(=매 rerun)마다
+        // 한 번만 재등록한다 — 이전 rerun의 iframe realm에서 등록된 리스너는 그 iframe이
+        // destroy되면 더 이상 호출되지 않는 현상이 있었기 때문.
+        let overlayBoundThisRun = false;
+        window.parent.__ypfBindMapOverlay = function(overlay) {{
+            if (overlayBoundThisRun) return;
+            overlayBoundThisRun = true;
+            const old = window.parent.__ypfZoomListeners;
+            if (old && old.el) {{
+                old.el.removeEventListener('wheel', old.wheel);
+                old.el.removeEventListener('pointerdown', old.pointerdown);
+                old.el.removeEventListener('pointermove', old.pointermove);
+                old.el.removeEventListener('pointerup', old.pointerup);
+                old.el.removeEventListener('pointercancel', old.pointercancel);
+            }}
+            overlay.addEventListener('wheel', onWheel, {{ passive: false }});
+            overlay.addEventListener('pointerdown', onPointerDown);
+            overlay.addEventListener('pointermove', onPointerMove);
+            overlay.addEventListener('pointerup', onPointerUp);
+            overlay.addEventListener('pointercancel', endPointer);
+            window.parent.__ypfZoomListeners = {{
+                el: overlay, wheel: onWheel, pointerdown: onPointerDown,
+                pointermove: onPointerMove, pointerup: onPointerUp, pointercancel: endPointer,
+            }};
         }};
     }}
 
@@ -882,14 +959,35 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             menu.classList.toggle('ypf-open', willOpen);
         }};
 
+        // 인앱 토스트 — 시스템 알림 권한/지원 여부와 무관하게 항상 화면에 표시되는 대비책
+        // (iOS Safari 등 일부 브라우저는 일반 웹사이트에서 Notification API 자체를 지원하지 않음)
+        function showToast(title, body) {{
+            const doc = window.parent.document;
+            const toast = doc.createElement('div');
+            toast.className = 'ypf-toast';
+            toast.innerHTML = '<strong>' + title + '</strong><br>' + body;
+            doc.body.appendChild(toast);
+            if (window.parent.navigator && window.parent.navigator.vibrate) {{
+                try {{ window.parent.navigator.vibrate([120, 60, 120]); }} catch (e) {{}}
+            }}
+            window.parent.setTimeout(function() {{
+                toast.classList.add('ypf-toast-out');
+                window.parent.setTimeout(function() {{ toast.remove(); }}, 400);
+            }}, 8000);
+        }}
+
         window.parent.__ypfBellSet = function(btn, hhmm, minutes, label) {{
             const wrap = btn.closest('.ypf-bell-wrap');
             const bellBtn = wrap ? wrap.querySelector('.ypf-bell-btn') : null;
             const menu = wrap ? wrap.querySelector('.ypf-bell-menu') : null;
+            const hasNotif = typeof window.parent.Notification !== 'undefined';
 
             function schedule() {{
                 const now = new Date();
-                const kstNow = new Date(now.getTime() + (9 * 60 - now.getTimezoneOffset()) * 60000);
+                // KST(UTC+9) 벽시계 시각을 로컬 getHours()/getMinutes()로 읽기 위한 변환.
+                // 기기가 이미 KST면 오프셋이 서로 상쇄돼 now와 같아야 하는데,
+                // 부호가 반대로 되어 있어 KST 기기에서 약 18시간이 밀리던 버그가 있었음.
+                const kstNow = new Date(now.getTime() + 9 * 3600000 + now.getTimezoneOffset() * 60000);
                 const h = parseInt(hhmm.slice(0, 2), 10), m = parseInt(hhmm.slice(2, 4), 10);
                 const target = new Date(kstNow);
                 target.setHours(h, m, 0, 0);
@@ -904,11 +1002,13 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
                 }}
                 window.parent.__ypfReminderInfo = {{ hhmm, minutes, label }};
                 window.parent.__ypfReminderTimer = window.parent.setTimeout(function() {{
-                    try {{
-                        new window.parent.Notification('🚌 버스 도착 ' + minutes + '분 전', {{
-                            body: label + ' · ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) + ' 도착 예정',
-                        }});
-                    }} catch (err) {{}}
+                    const title = '🚌 버스 도착 ' + minutes + '분 전';
+                    const body = label + ' · ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) + ' 도착 예정';
+                    if (hasNotif && window.parent.Notification.permission === 'granted') {{
+                        try {{ new window.parent.Notification(title, {{ body: body }}); }} catch (err) {{}}
+                    }}
+                    // 시스템 알림 성공 여부와 무관하게 탭이 열려있는 한 항상 화면에도 표시
+                    showToast(title, body);
                     window.parent.__ypfReminderInfo = null;
                     window.parent.__ypfReminderTimer = null;
                     window.parent.document.querySelectorAll('.ypf-bell-btn').forEach(b => {{
@@ -919,15 +1019,19 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
                 if (menu) menu.classList.remove('ypf-open');
             }}
 
+            if (!hasNotif) {{
+                // 시스템 알림 미지원 브라우저 — 화면 켜둔 상태에서 인앱 토스트로만 알림
+                schedule();
+                return;
+            }}
             if (window.parent.Notification.permission === 'granted') {{
                 schedule();
             }} else if (window.parent.Notification.permission !== 'denied') {{
                 window.parent.Notification.requestPermission().then(function(perm) {{
-                    if (perm === 'granted') schedule();
-                    else window.parent.alert('알림 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
-                }});
+                    schedule();  // 거부돼도 인앱 토스트는 동작하므로 예약은 그대로 진행
+                }}).catch(function() {{ schedule(); }});
             }} else {{
-                window.parent.alert('알림이 차단되어 있어요. 브라우저 사이트 설정에서 알림을 허용해주세요.');
+                schedule();  // 알림 차단 상태 — 인앱 토스트로 대체
             }}
         }};
 
@@ -1106,9 +1210,14 @@ def render_next_buses(times: list, line_color: str, T: dict, remind_label: str =
     # st.markdown(unsafe_allow_html=True)는 onclick 등 인라인 이벤트 핸들러를 스트립하므로
     # data-* 속성만 심고 실제 이벤트 바인딩은 components.html 스크립트의 이벤트 위임으로 처리
     safe_label = remind_label.replace("\\", "").replace("'", "").replace('"', "")
+    bell_svg = (
+        "<svg viewBox='0 0 24 24' fill='currentColor'><path d='M12 2c-1.1 0-2 .9-2 2v.29"
+        "C7.28 5.15 5.5 7.83 5.5 11v5l-2 2v1h17v-1l-2-2v-5c0-3.17-1.78-5.85-4.5-6.71V4c0-1.1-.9-2-2-2z"
+        "m0 20c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z'/></svg>"
+    )
     bell_html = (
         f"<span class='ypf-bell-wrap'>"
-        f"<button type='button' class='ypf-bell-btn' title='{T['remind_title']}'>🔔</button>"
+        f"<button type='button' class='ypf-bell-btn' title='{T['remind_title']}'>{bell_svg}</button>"
         f"<div class='ypf-bell-menu'>"
         f"<button type='button' data-remind-minutes='3' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_3']}</button>"
         f"<button type='button' data-remind-minutes='5' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_5']}</button>"
@@ -1120,8 +1229,9 @@ def render_next_buses(times: list, line_color: str, T: dict, remind_label: str =
         f"padding:12px 16px;border-radius:6px;margin-bottom:4px;text-align:center'>"
         f"{T['next_bus']}"
         f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">' + T['last_bus'] + '</span>' if is_last else ''}<br>"
-        f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>"
-        f"{fmt(hhmm)}</span>{bell_html}</div>"
+        f"<span class='ypf-bell-anchor'>"
+        f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>{fmt(hhmm)}</span>"
+        f"{bell_html}</span></div>"
     )
     if not is_last:
         for label, idx in [(T["next2"], 1), (T["next3"], 2)]:
