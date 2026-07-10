@@ -345,32 +345,6 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         touch-action: none;
         cursor: grab;
     }
-    .ypf-zoom-ctrl {
-        position: absolute;
-        right: 8px;
-        bottom: 8px;
-        z-index: 20;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        pointer-events: none;
-    }
-    .ypf-zoom-ctrl button {
-        pointer-events: auto;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(30, 41, 59, 0.72);
-        color: #fff;
-        font-size: 16px;
-        font-weight: 700;
-        line-height: 1;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    }
-    .ypf-zoom-ctrl button:active { background: rgba(30, 41, 59, 0.92); }
-    .ypf-zoom-ctrl button.ypf-zoom-reset { font-size: 12px; }
     /* 종 알림 버튼 — 시간 표시 옆에 절대 위치로 붙여서 시간 자체의 가운데 정렬에 영향 없게 함 */
     .ypf-bell-anchor { position: relative; display: inline-block; }
     .ypf-bell-wrap {
@@ -744,18 +718,6 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             overlay = window.parent.document.createElement('div');
             overlay.className = 'ypf-map-touch';
             block.appendChild(overlay);
-
-            const ctrl = window.parent.document.createElement('div');
-            ctrl.className = 'ypf-zoom-ctrl';
-            ctrl.innerHTML =
-                '<button type="button" title="확대">+</button>' +
-                '<button type="button" title="축소">−</button>' +
-                '<button type="button" class="ypf-zoom-reset" title="원래 크기">1:1</button>';
-            const [inBtn, outBtn, resetBtn] = ctrl.querySelectorAll('button');
-            inBtn.onclick    = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomIn(); }};
-            outBtn.onclick   = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomOut(); }};
-            resetBtn.onclick = (e) => {{ e.stopPropagation(); e.preventDefault(); window.parent.__ypfZoomReset(); }};
-            block.appendChild(ctrl);
         }}
         if (overlay && window.parent.__ypfBindMapOverlay) window.parent.__ypfBindMapOverlay(overlay);
     }}
@@ -818,22 +780,6 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             applyTransform();
         }}
 
-        function resetZoom() {{
-            state.scale = 1; state.tx = 0; state.ty = 0;
-            applyTransform();
-        }}
-
-        window.parent.__ypfZoomIn = function() {{
-            const frame = getStaticFrame();
-            if (!frame) return;
-            setScale(state.scale * 1.5, frame.width / 2, frame.height / 2, frame);
-        }};
-        window.parent.__ypfZoomOut = function() {{
-            const frame = getStaticFrame();
-            if (!frame) return;
-            setScale(state.scale / 1.5, frame.width / 2, frame.height / 2, frame);
-        }};
-        window.parent.__ypfZoomReset = resetZoom;
         window.parent.__ypfReapplyZoom = applyTransform;
 
         // 정류장 탭(클릭) 전달: 오버레이가 제스처를 가로채면 iframe 내부의
