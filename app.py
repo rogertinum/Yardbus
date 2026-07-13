@@ -905,6 +905,44 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             menu.classList.toggle('ypf-open', willOpen);
         }};
 
+        // 알림음 — AudioContext는 사용자 제스처 없이 나중에(setTimeout 콜백에서) 재생을
+        // 시도하면 브라우저 자동재생 정책에 막힐 수 있으므로, 종 메뉴에서 3분전/5분전을
+        // "누르는 그 순간"(진짜 사용자 제스처) 미리 만들어 두고 이후에는 재사용한다.
+        function ensureAudioCtx() {{
+            if (!window.parent.__ypfAudioCtx) {{
+                const AC = window.parent.AudioContext || window.parent.webkitAudioContext;
+                if (AC) {{
+                    try {{ window.parent.__ypfAudioCtx = new AC(); }} catch (e) {{}}
+                }}
+            }}
+            const ctx = window.parent.__ypfAudioCtx;
+            if (ctx && ctx.state === 'suspended') {{
+                ctx.resume().catch(function() {{}});
+            }}
+            return ctx;
+        }}
+
+        function playBeep() {{
+            const ctx = ensureAudioCtx();
+            if (!ctx) return;
+            try {{
+                const now = ctx.currentTime;
+                for (let i = 0; i < 3; i++) {{
+                    const t0 = now + i * 0.35;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 880;
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(t0);
+                    osc.stop(t0 + 0.3);
+                }}
+            }} catch (e) {{}}
+        }}
+
         // 인앱 토스트 — 시스템 알림 권한/지원 여부와 무관하게 항상 화면에 표시되는 대비책
         // (iOS Safari 등 일부 브라우저는 일반 웹사이트에서 Notification API 자체를 지원하지 않음)
         function showToast(title, body) {{
@@ -913,6 +951,7 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             toast.className = 'ypf-toast';
             toast.innerHTML = '<strong>' + title + '</strong><br>' + body;
             doc.body.appendChild(toast);
+            playBeep();
             if (window.parent.navigator && window.parent.navigator.vibrate) {{
                 try {{ window.parent.navigator.vibrate([120, 60, 120]); }} catch (e) {{}}
             }}
@@ -927,6 +966,7 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
             const bellBtn = wrap ? wrap.querySelector('.ypf-bell-btn') : null;
             const menu = wrap ? wrap.querySelector('.ypf-bell-menu') : null;
             const hasNotif = typeof window.parent.Notification !== 'undefined';
+            ensureAudioCtx();  // 지금 이 클릭(진짜 사용자 제스처) 안에서 미리 열어둬야 나중에 재생 가능
 
             function schedule() {{
                 const now = new Date();
