@@ -21,10 +21,12 @@ def _hit_counter(key: str) -> int:
         return -1
 
 def fetch_visitor_counts() -> tuple[int, int]:
-    """오늘(KST) + 총 방문자 카운트를 각 1씩 증가 후 반환."""
+    """오늘(KST) + 총 방문자 카운트를 각 1씩 증가 후 반환.
+    total-v2: 서비스 이전으로 0부터 다시 세던 총 방문자 수를 30000부터 시작하도록
+    abacus에서 initializer=30000으로 새로 만든 키 (예전 total 키는 admin_key가 없어 수정 불가)."""
     today_key = "today-" + datetime.datetime.now(tz=_KST).strftime("%Y-%m-%d")
     today = _hit_counter(today_key)
-    total = _hit_counter("total")
+    total = _hit_counter("total-v2")
     return today, total
 
 st.set_page_config(page_title="야드 버스 시간표", page_icon="🚌", layout="wide",
