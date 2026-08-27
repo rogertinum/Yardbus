@@ -365,6 +365,10 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
     .ypf-bell-btn:hover { background: rgba(148, 163, 184, 0.18); }
     .ypf-bell-btn svg { width: 17px; height: 17px; display: block; }
     .ypf-bell-btn.ypf-bell-active { color: #f59e0b; }
+    /* 그다음/그다다음 버스 행 — 작은 글씨 줄에 맞춘 축소 버전 */
+    .ypf-bell-wrap-sm { margin-left: 4px; }
+    .ypf-bell-wrap-sm .ypf-bell-btn { padding: 2px; }
+    .ypf-bell-wrap-sm .ypf-bell-btn svg { width: 13px; height: 13px; }
     .ypf-bell-menu {
         position: absolute; top: 130%; left: 50%; transform: translateX(-50%);
         background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
@@ -468,6 +472,15 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
         .ypf-bell-btn svg {
             width: 22px !important;
             height: 22px !important;
+        }
+        /* 그다음/그다다음 행은 터치는 넉넉히, 시각적으로는 조금 더 작게 */
+        .ypf-bell-wrap-sm .ypf-bell-btn {
+            min-width: 36px !important;
+            min-height: 32px !important;
+        }
+        .ypf-bell-wrap-sm .ypf-bell-btn svg {
+            width: 17px !important;
+            height: 17px !important;
         }
         .ypf-bell-menu button {
             padding: 10px 14px !important;
@@ -1079,9 +1092,14 @@ def inject_all_css(line_display, close_sidebar=False, visitor_today=-1, visitor_
     }}
 
     function syncBellState() {{
-        const active = !!window.parent.__ypfReminderInfo;
-        window.parent.document.querySelectorAll('.ypf-bell-btn').forEach(btn => {{
-            btn.classList.toggle('ypf-bell-active', active);
+        // 다음/그다음/그다다음 버스마다 각자 종이 있으므로, 실제 예약된 버스 시각(hhmm)과
+        // 일치하는 종만 활성 표시한다 (전역 플래그 하나로 전부 켜면 헷갈림).
+        const info = window.parent.__ypfReminderInfo;
+        window.parent.document.querySelectorAll('.ypf-bell-wrap').forEach(wrap => {{
+            const bellBtn = wrap.querySelector('.ypf-bell-btn');
+            const setBtn = wrap.querySelector('.ypf-bell-menu button[data-hhmm]');
+            const matches = !!info && !!setBtn && setBtn.dataset.hhmm === info.hhmm;
+            if (bellBtn) bellBtn.classList.toggle('ypf-bell-active', matches);
         }});
     }}
 
@@ -1207,6 +1225,27 @@ def fmt_time(raw: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 # ── 다음 버스 표시 ─────────────────────────────────────────────────────────────
+_BELL_SVG = (
+    "<svg viewBox='0 0 24 24' fill='currentColor'><path d='M12 2c-1.1 0-2 .9-2 2v.29"
+    "C7.28 5.15 5.5 7.83 5.5 11v5l-2 2v1h17v-1l-2-2v-5c0-3.17-1.78-5.85-4.5-6.71V4c0-1.1-.9-2-2-2z"
+    "m0 20c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z'/></svg>"
+)
+
+def _bell_html(hhmm: str, safe_label: str, T: dict, small: bool = False) -> str:
+    """다음/그다음/그다다음 버스 각 행에 붙는 알림 종 버튼.
+    st.markdown(unsafe_allow_html=True)는 onclick 등 인라인 이벤트 핸들러를 스트립하므로
+    data-* 속성만 심고 실제 이벤트 바인딩은 components.html 스크립트의 이벤트 위임으로 처리"""
+    cls = " ypf-bell-wrap-sm" if small else ""
+    return (
+        f"<span class='ypf-bell-wrap{cls}'>"
+        f"<button type='button' class='ypf-bell-btn' title='{T['remind_title']}'>{_BELL_SVG}</button>"
+        f"<div class='ypf-bell-menu'>"
+        f"<button type='button' data-remind-minutes='3' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_3']}</button>"
+        f"<button type='button' data-remind-minutes='5' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_5']}</button>"
+        f"<button type='button' class='ypf-cancel' data-remind-cancel='1'>{T['remind_cancel']}</button>"
+        f"</div></span>"
+    )
+
 def render_next_buses(times: list, line_color: str, T: dict, remind_label: str = "") -> str:
     fmt = fmt_time
     upcoming = [t for t in times if t["TIME_PASS_YN"] == "N"]
@@ -1216,23 +1255,7 @@ def render_next_buses(times: list, line_color: str, T: dict, remind_label: str =
         return f"<div style='color:#aaa;padding:8px;text-align:center'>{T['no_service']}</div>"
     is_last = len(upcoming) == 1
     hhmm = upcoming[0]["TIME"]
-    # st.markdown(unsafe_allow_html=True)는 onclick 등 인라인 이벤트 핸들러를 스트립하므로
-    # data-* 속성만 심고 실제 이벤트 바인딩은 components.html 스크립트의 이벤트 위임으로 처리
     safe_label = remind_label.replace("\\", "").replace("'", "").replace('"', "")
-    bell_svg = (
-        "<svg viewBox='0 0 24 24' fill='currentColor'><path d='M12 2c-1.1 0-2 .9-2 2v.29"
-        "C7.28 5.15 5.5 7.83 5.5 11v5l-2 2v1h17v-1l-2-2v-5c0-3.17-1.78-5.85-4.5-6.71V4c0-1.1-.9-2-2-2z"
-        "m0 20c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z'/></svg>"
-    )
-    bell_html = (
-        f"<span class='ypf-bell-wrap'>"
-        f"<button type='button' class='ypf-bell-btn' title='{T['remind_title']}'>{bell_svg}</button>"
-        f"<div class='ypf-bell-menu'>"
-        f"<button type='button' data-remind-minutes='3' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_3']}</button>"
-        f"<button type='button' data-remind-minutes='5' data-hhmm='{hhmm}' data-label=\"{safe_label}\">{T['remind_5']}</button>"
-        f"<button type='button' class='ypf-cancel' data-remind-cancel='1'>{T['remind_cancel']}</button>"
-        f"</div></span>"
-    )
     html = (
         f"<div style='background:{line_color}18;border-left:4px solid {line_color};"
         f"padding:12px 16px;border-radius:6px;margin-bottom:4px;text-align:center'>"
@@ -1240,15 +1263,18 @@ def render_next_buses(times: list, line_color: str, T: dict, remind_label: str =
         f"{'&nbsp;<span style=\"font-size:0.75em;font-weight:700;color:#e53e3e\">' + T['last_bus'] + '</span>' if is_last else ''}<br>"
         f"<span class='ypf-bell-anchor'>"
         f"<span style='font-size:1.8em;font-weight:800;color:{line_color}'>{fmt(hhmm)}</span>"
-        f"{bell_html}</span></div>"
+        f"{_bell_html(hhmm, safe_label, T)}</span></div>"
     )
     if not is_last:
         for label, idx in [(T["next2"], 1), (T["next3"], 2)]:
             if len(upcoming) > idx:
+                next_hhmm = upcoming[idx]["TIME"]
                 html += (
                     f"<div style='padding:2px 16px;color:#555;font-size:0.92em;text-align:center'>"
                     f"{label} &nbsp;"
-                    f"<span style='font-weight:700;color:#333'>{fmt(upcoming[idx]['TIME'])}</span></div>"
+                    f"<span class='ypf-bell-anchor'>"
+                    f"<span style='font-weight:700;color:#333'>{fmt(next_hhmm)}</span>"
+                    f"{_bell_html(next_hhmm, safe_label, T, small=True)}</span></div>"
                 )
     return html
 
