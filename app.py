@@ -1197,6 +1197,29 @@ def fetch_all_lines(station_code: str) -> dict:
                 result[lid]["directions"].append(d)
     return result
 
+# ── 시간 포맷 / 정렬 ───────────────────────────────────────────────────────────
+def _norm_hm(raw: str):
+    """HHMM 문자열 → (시, 분). 실패하면 None.
+    드물게 분(MM)이 60 이상인 비정상 값(예: '0760' → 분이 60)이 내려오므로
+    초과분을 시(H)로 올림 처리한다."""
+    try:
+        h, m = int(raw[:2]), int(raw[2:4])
+    except (ValueError, TypeError, IndexError):
+        return None
+    h += m // 60
+    m %= 60
+    return h % 24, m
+
+def fmt_time(raw: str) -> str:
+    """API가 주는 HHMM 문자열을 HH:MM으로 변환."""
+    hm = _norm_hm(raw)
+    return raw if hm is None else f"{hm[0]:02d}:{hm[1]:02d}"
+
+def time_key(raw: str) -> int:
+    """정렬용 — 자정 기준 경과 분. 파싱 불가한 값은 맨 앞으로."""
+    hm = _norm_hm(raw)
+    return -1 if hm is None else hm[0] * 60 + hm[1]
+
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_timetable(station_code: str, direction: str, line: str) -> list:
     try:
@@ -1205,24 +1228,13 @@ def fetch_timetable(station_code: str, direction: str, line: str) -> list:
                           headers=API_HEADERS, timeout=5)
         d = r.json()
         if d.get("errCd") == "0":
-            return d["dataSet"]
+            # API가 간혹 시각 순서를 어겨서 내려준다(예: 설계1관 A노선에서 14:14가
+            # 13:44 앞에 옴). 화면은 배열 순서를 그대로 '다음/그다음/그다다음'에
+            # 쓰므로, 받는 즉시 시각순으로 정렬해 순서가 뒤바뀌어 보이지 않게 한다.
+            return sorted(d["dataSet"], key=lambda t: time_key(t.get("TIME", "")))
     except Exception:
         pass
     return []
-
-# ── 시간 포맷 ──────────────────────────────────────────────────────────────────
-def fmt_time(raw: str) -> str:
-    """API가 주는 HHMM 문자열을 HH:MM으로 변환.
-    드물게 분(MM)이 60 이상인 비정상 값(예: '1888' → 분이 88)이 내려오는 경우가 있어
-    그대로 자르면 '18:88' 같은 말이 안 되는 시각이 나온다. 초과분을 시(H)로 올림 처리한다."""
-    try:
-        h, m = int(raw[:2]), int(raw[2:4])
-    except (ValueError, TypeError, IndexError):
-        return raw
-    h += m // 60
-    m %= 60
-    h %= 24
-    return f"{h:02d}:{m:02d}"
 
 # ── 다음 버스 표시 ─────────────────────────────────────────────────────────────
 _BELL_SVG = (
